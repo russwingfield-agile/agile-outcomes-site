@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="A live delivery dashboard built from a public Jira project: throughput, lead time, work item age, flow and a Monte Carlo forecast.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Live delivery dashboard | Agile Outcomes">
+<meta property="og:description" content="Flow metrics worked out live from a public Jira project.">
+<meta property="og:url" content="https://agileoutcomes.co.uk/demo/">
+<meta name="twitter:card" content="summary">
+<link rel="canonical" href="https://agileoutcomes.co.uk/demo/">
+<title>Live delivery dashboard | Agile Outcomes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,200..800&family=Instrument+Sans:wght@400..700&family=JetBrains+Mono:wght@400..600&display=swap">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230C2233'/%3E%3Cpath d='M5 25H11V19H17V13H23V7H27' fill='none' stroke='%233DD0A5' stroke-width='3' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/styles.css">
+
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="top" id="top">
+  <div class="wrap bar">
+    <a class="brand" href="/" aria-label="Agile Outcomes, home">
+      <svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8"/><path d="M5 25H11V19H17V13H23V7H27" fill="none" stroke-width="3" stroke-linejoin="round"/></svg>
+      <span>Agile Outcomes</span>
+    </a>
+    <nav class="nav" aria-label="Main">
+      <a href="/#cases">Case studies</a>
+      <a href="/#about">About</a>
+      <a href="/#engagements">Engagements</a>
+      <a href="/demo/" aria-current="true">Live demo</a>
+      <a href="/#contact">Contact</a>
+    </nav>
+    <div class="bar-actions">
+      <button class="theme" id="theme" type="button" aria-label="Switch to dark theme">
+        <span class="i-moon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z"/></svg></span>
+        <span class="i-sun" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></span>
+      </button>
+      <a class="btn btn-sm" href="/#book">Book a call</a>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+
+<section class="sec" id="showcase" aria-labelledby="show-h" data-state="loading">
+  <div class="wrap">
+    <header class="sec-head rv">
+      <p class="eyebrow">Live demo</p>
+      <h1 id="show-h">What a delivery dashboard looks like, on real data.</h1>
+      <p class="sub">This reads the public Jira project that Atlassian uses for Jira Cloud bugs, and works out the flow metrics I would set up for a team. Team-level only, so no individuals are shown. Tracker figures are context, not a verdict on how Atlassian works.</p>
+      <p class="live"><span class="dot" aria-hidden="true"></span><span id="sc-updated">Loading live data</span></p>
+    </header>
+
+    <div class="sc-error" role="alert"><p>The live data could not be loaded just now.</p><button type="button" class="btn btn-ghost btn-sm" id="sc-retry">Try again</button></div>
+
+    <div class="panels">
+      <figure class="panel" aria-labelledby="tp-t">
+        <figcaption><span class="cc-title" id="tp-t">Throughput</span><span class="cc-sub">Issues resolved per week</span></figcaption>
+        <div class="pbody"><div class="plot2" id="p-tp"></div><div class="skel" aria-hidden="true"></div></div>
+        <dl class="reads2"><div><dt>Average</dt><dd id="r-tp-avg">–</dd></div><div><dt>Trend</dt><dd id="r-tp-trend">–</dd></div></dl>
+        <p class="pnote">Shows the pace the team really sustains. The line is a trend over complete weeks; the paler last bar is the week still in progress.</p>
+      </figure>
+      <figure class="panel" aria-labelledby="lt-t">
+        <figcaption><span class="cc-title" id="lt-t">Lead time</span><span class="cc-sub">Days from raised to resolved</span></figcaption>
+        <div class="pbody"><div class="plot2" id="p-lt"></div><div class="skel" aria-hidden="true"></div></div>
+        <dl class="reads2"><div><dt>50% within</dt><dd id="r-lt-p50">–</dd></div><div><dt>85% within</dt><dd id="r-lt-p85">–</dd></div><div><dt>95% within</dt><dd id="r-lt-p95">–</dd></div><div><dt>Sample</dt><dd id="r-lt-n">–</dd></div></dl>
+        <p class="pnote">Each dot is one resolved issue; the log scale keeps both quick fixes and long waits visible. The percentile lines are what you would quote when a stakeholder asks how long it takes.</p>
+      </figure>
+      <figure class="panel" aria-labelledby="age-t">
+        <figcaption><span class="cc-title" id="age-t">Work item age</span><span class="cc-sub">Open issues in progress</span></figcaption>
+        <div class="pbody"><div class="plot2" id="p-age"></div><div class="skel" aria-hidden="true"></div></div>
+        <dl class="reads2"><div><dt>In progress</dt><dd id="r-age-n">–</dd></div><div><dt>Median age</dt><dd id="r-age-p50">–</dd></div><div><dt>Older than the 85th</dt><dd id="r-age-over">–</dd></div></dl>
+        <p class="pnote">Age is measured since the issue was raised, as this public workflow does not record a clean start date. Amber dots are older than 85% of past issues: the ones to look at first.</p>
+      </figure>
+      <figure class="panel" aria-labelledby="flow-t">
+        <figcaption><span class="cc-title" id="flow-t">Arrivals and departures</span><span class="cc-sub">Cumulative, last 90 days</span></figcaption>
+        <div class="pbody"><div class="plot2" id="p-flow"></div><div class="skel" aria-hidden="true"></div></div>
+        <dl class="reads2"><div><dt>Raised</dt><dd id="r-fl-arr">–</dd></div><div><dt>Resolved</dt><dd id="r-fl-dep">–</dd></div><div><dt>Net change</dt><dd id="r-fl-net">–</dd></div></dl>
+        <p class="pnote">When the raised line sits above the resolved line, the queue is growing. A full cumulative flow diagram needs every status change; this is the part that public data supports cheaply.</p>
+      </figure>
+      <figure class="panel" aria-labelledby="fc-t">
+        <figcaption><span class="cc-title" id="fc-t">Forecast</span><span class="cc-sub">Monte Carlo, next 4 weeks</span></figcaption>
+        <div class="pbody"><div class="plot2" id="p-fc"></div><div class="skel" aria-hidden="true"></div></div>
+        <dl class="reads2"><div><dt>At least, 50%</dt><dd id="r-fc-50">–</dd></div><div><dt>At least, 85%</dt><dd id="r-fc-85">–</dd></div><div><dt>At least, 95%</dt><dd id="r-fc-95">–</dd></div></dl>
+        <p class="pnote"><span id="fc-basis">Simulated from recent throughput</span>. A range, not a promise. <span id="r-fc-target"></span></p>
+      </figure>
+    </div>
+    <p class="sc-foot rv">Source: <a href="https://jira.atlassian.com/browse/JRACLOUD" target="_blank" rel="noopener">jira.atlassian.com, project JRACLOUD</a>, public data. Currently <b id="sc-open">–</b> open issues and <b id="sc-res">–</b> resolved in the last year. Computed by a small Cloudflare Worker and cached for ten minutes. I build the same views on your own Jira data, in your tooling.</p>
+  </div>
+</section>
+
+<section class="sec alt" aria-labelledby="demo-cta-h">
+  <div class="wrap">
+    <div class="cta rv">
+      <p class="eyebrow">Your data next</p>
+      <h2 id="demo-cta-h">Want this on your own delivery data?</h2>
+      <p>I build the same views on your Jira, with the habits to use them. A delivery health check is a good first step.</p>
+      <div class="actions">
+        <a class="btn" href="/#book">Book a 30-minute call <span class="arr" aria-hidden="true">→</span></a>
+        <a class="btn btn-ghost" href="/#engagements">See the engagements</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap foot">
+    <p>© <span id="yr">2026</span> Russ Wingfield · Agile Outcomes · Hertfordshire, UK</p>
+    <nav aria-label="Footer"><a href="https://www.linkedin.com/in/russwingfield/" target="_blank" rel="noopener">LinkedIn</a><a href="/">Home</a><a href="#top">Back to top</a></nav>
+  </div>
+</footer>
+<script src="/app.js" defer></script>
+<script src="/showcase.js" defer></script>
+</body>
+</html>

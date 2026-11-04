@@ -11,4 +11,4 @@ Website for Agile Outcomes (agileoutcomes.co.uk).
 
 `src/index.js` is a Cloudflare Worker that serves `/api/flow` and passes everything else to the static assets in `public/`.
 It reads the public Jira project JRACLOUD (jira.atlassian.com, anonymous), computes flow metrics in `src/metrics.js`, and caches the result for 10 minutes.
-`public/showcase.js` loads it on page load and draws five SVG panels. Run `node test/metrics.test.mjs` to check the calculations.
+The dashboard lives on its own page, `public/demo/index.html` (served at `/demo/`); `public/showcase.js` loads the data and draws five SVG panels. The home page quietly fetches `/api/flow` when idle so the data is cached by the time the demo opens. Run `node test/metrics.test.mjs` to check the calculations.

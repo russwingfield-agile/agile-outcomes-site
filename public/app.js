@@ -46,8 +46,16 @@
         }
       });
     }, { rootMargin: '-40% 0px -55% 0px' });
-    ['cases', 'about', 'engagements', 'showcase', 'contact'].forEach(function (id) { var s = document.getElementById(id); if (s) spy.observe(s); });
+    ['cases', 'about', 'engagements', 'contact'].forEach(function (id) { var s = document.getElementById(id); if (s) spy.observe(s); });
   }
+
+  $('#yr').textContent = new Date().getFullYear();
+
+  /* Everything below belongs to the home page only. */
+  if (!$('#chart')) return;
+
+  /* Warm the Worker and the browser cache so the live demo page opens with its data ready. */
+  (window.requestIdleCallback || function (f) { setTimeout(f, 1500); })(function () { try { fetch('/api/flow').catch(function () {}); } catch (e) {} });
 
   /* ---------- hero burn-up chart ---------- */
   var svg = $('#chart'), plot = $('#plot'), tip = $('#tip');
@@ -217,5 +225,4 @@
     try { navigator.clipboard.writeText(addr).then(function () { done(true); }, function () { done(false); }); }
     catch (e) { done(false); }
   });
-  $('#yr').textContent = new Date().getFullYear();
 })();
