@@ -319,3 +319,5 @@ footer{padding-block:36px calc(36px + env(safe-area-inset-bottom,0px));color:var
 .teaser p:not(.eyebrow){color:var(--muted);text-wrap:pretty}
 .btn-sm{white-space:nowrap}
 @media (max-width:560px){.dash-meta .per::before{content:none}.dash-meta .per{flex-basis:100%}}
+.src{margin-top:clamp(18px,2.6vw,28px);font-size:.86rem;color:var(--muted);max-width:78ch;text-wrap:pretty}
+.src a{color:var(--ink)}
