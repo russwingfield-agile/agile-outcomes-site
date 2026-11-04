@@ -46,7 +46,7 @@
         }
       });
     }, { rootMargin: '-40% 0px -55% 0px' });
-    ['services', 'results', 'approach', 'about'].forEach(function (id) { var s = document.getElementById(id); if (s) spy.observe(s); });
+    ['cases', 'about', 'engagements', 'contact'].forEach(function (id) { var s = document.getElementById(id); if (s) spy.observe(s); });
   }
 
   /* ---------- hero burn-up chart ---------- */
@@ -170,33 +170,6 @@
   else window.addEventListener('resize', draw);
   readouts();
   go('visible');
-
-  /* ---------- problem tabs ---------- */
-  var tabs = $$('.tab'), panels = $$('.panel');
-  function select(i, focus) {
-    tabs.forEach(function (t, j) {
-      var on = j === i;
-      t.setAttribute('aria-selected', on);
-      t.tabIndex = on ? 0 : -1;
-      panels[j].hidden = !on;
-    });
-    if (focus) tabs[i].focus();
-    if (window.matchMedia('(max-width: 940px)').matches) {
-      var r = panels[i].getBoundingClientRect();
-      if (r.top > window.innerHeight * 0.6 || r.bottom < 0) panels[i].scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
-    }
-  }
-  tabs.forEach(function (t, i) {
-    t.addEventListener('click', function () { select(i, false); });
-    t.addEventListener('keydown', function (e) {
-      var n = tabs.length, k = null;
-      if (e.key === 'ArrowDown' || e.key === 'ArrowRight') k = (i + 1) % n;
-      else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') k = (i - 1 + n) % n;
-      else if (e.key === 'Home') k = 0;
-      else if (e.key === 'End') k = n - 1;
-      if (k !== null) { e.preventDefault(); select(k, true); }
-    });
-  });
 
   /* ---------- results: tick marks + count-up ---------- */
   var ticks = $('#ticks');
