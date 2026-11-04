@@ -1,0 +1,24 @@
+import assert from 'node:assert/strict';
+import { buildReport, percentile, startOfWeekUTC } from '../src/metrics.js';
+const DAY = 86400000, now = Date.UTC(2026, 10, 4, 12);
+let s = 7; const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647;
+const resolved = [], arrivals = [], open = [];
+for (let i = 0; i < 1000; i++) { const r = now - rnd() * 190 * DAY; resolved.push({ resolved: r, created: r - Math.exp(rnd() * 7) * DAY }); }
+for (let i = 0; i < 300; i++) arrivals.push(now - rnd() * 90 * DAY);
+for (let i = 0; i < 40; i++) open.push({ key: 'JRACLOUD-' + i, status: ['In Progress', 'In Review', 'Waiting for Release'][i % 3], created: now - rnd() * 400 * DAY });
+const t0 = Date.now();
+const rep = buildReport({ resolved, arrivals, open, totals: { open: 7831, resolvedLast365: 1921 } }, now);
+console.log('compute ms', Date.now() - t0, 'json kB', Math.round(JSON.stringify(rep).length / 1024));
+assert.equal(percentile([1, 2, 3, 4, 5], 0.5), 3);
+assert.equal(new Date(startOfWeekUTC(now)).getUTCDay(), 1);
+assert.equal(rep.throughput.weeks.length, 27);
+assert.equal(rep.throughput.weeks.at(-1).partial, true);
+assert.ok(rep.leadTime.p50 < rep.leadTime.p85 && rep.leadTime.p85 < rep.leadTime.p95);
+assert.equal(rep.flow.days.length, 90);
+assert.equal(rep.flow.days.at(-1).arrived, rep.flow.days.at(-1).arrived);
+assert.ok(rep.age.items[0].age >= rep.age.items.at(-1).age);
+assert.ok(rep.forecast.outcomes.atLeast95 <= rep.forecast.outcomes.atLeast85 && rep.forecast.outcomes.atLeast85 <= rep.forecast.outcomes.atLeast50);
+assert.ok(rep.forecast.weeksToTarget.p50 <= rep.forecast.weeksToTarget.p95);
+assert.ok(!JSON.stringify(rep).match(/assignee|reporter|displayName/));
+console.log(JSON.stringify({ tp: rep.throughput.trend, lt: [rep.leadTime.p50, rep.leadTime.p85, rep.leadTime.p95, rep.leadTime.n], net: rep.flow.netChange, fc: rep.forecast.outcomes, wt: rep.forecast.weeksToTarget }));
+console.log('ok');

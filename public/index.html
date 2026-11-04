@@ -32,6 +32,7 @@
       <a href="#cases">Case studies</a>
       <a href="#about">About</a>
       <a href="#engagements">Engagements</a>
+      <a href="#showcase">Live demo</a>
       <a href="#contact">Contact</a>
     </nav>
     <div class="bar-actions">
@@ -182,6 +183,53 @@
   </div>
 </section>
 
+<section class="sec" id="showcase" aria-labelledby="show-h" data-state="loading">
+  <div class="wrap">
+    <header class="sec-head rv">
+      <p class="eyebrow">Live demo</p>
+      <h2 id="show-h">What a delivery dashboard looks like, on real data.</h2>
+      <p class="sub">This reads the public Jira project that Atlassian uses for Jira Cloud bugs, and works out the flow metrics I would set up for a team. Team-level only, so no individuals are shown. Tracker figures are context, not a verdict on how Atlassian works.</p>
+      <p class="live"><span class="dot" aria-hidden="true"></span><span id="sc-updated">Loading live data</span></p>
+    </header>
+
+    <div class="sc-error" role="alert"><p>The live data could not be loaded just now.</p><button type="button" class="btn btn-ghost btn-sm" id="sc-retry">Try again</button></div>
+
+    <div class="panels">
+      <figure class="panel" aria-labelledby="tp-t">
+        <figcaption><span class="cc-title" id="tp-t">Throughput</span><span class="cc-sub">Issues resolved per week</span></figcaption>
+        <div class="pbody"><div class="plot2" id="p-tp"></div><div class="skel" aria-hidden="true"></div></div>
+        <dl class="reads2"><div><dt>Average</dt><dd id="r-tp-avg">–</dd></div><div><dt>Trend</dt><dd id="r-tp-trend">–</dd></div></dl>
+        <p class="pnote">Shows the pace the team really sustains. The line is a trend over complete weeks; the paler last bar is the week still in progress.</p>
+      </figure>
+      <figure class="panel" aria-labelledby="lt-t">
+        <figcaption><span class="cc-title" id="lt-t">Lead time</span><span class="cc-sub">Days from raised to resolved</span></figcaption>
+        <div class="pbody"><div class="plot2" id="p-lt"></div><div class="skel" aria-hidden="true"></div></div>
+        <dl class="reads2"><div><dt>50% within</dt><dd id="r-lt-p50">–</dd></div><div><dt>85% within</dt><dd id="r-lt-p85">–</dd></div><div><dt>95% within</dt><dd id="r-lt-p95">–</dd></div><div><dt>Sample</dt><dd id="r-lt-n">–</dd></div></dl>
+        <p class="pnote">Each dot is one resolved issue; the log scale keeps both quick fixes and long waits visible. The percentile lines are what you would quote when a stakeholder asks how long it takes.</p>
+      </figure>
+      <figure class="panel" aria-labelledby="age-t">
+        <figcaption><span class="cc-title" id="age-t">Work item age</span><span class="cc-sub">Open issues in progress</span></figcaption>
+        <div class="pbody"><div class="plot2" id="p-age"></div><div class="skel" aria-hidden="true"></div></div>
+        <dl class="reads2"><div><dt>In progress</dt><dd id="r-age-n">–</dd></div><div><dt>Median age</dt><dd id="r-age-p50">–</dd></div><div><dt>Older than the 85th</dt><dd id="r-age-over">–</dd></div></dl>
+        <p class="pnote">Age is measured since the issue was raised, as this public workflow does not record a clean start date. Amber dots are older than 85% of past issues: the ones to look at first.</p>
+      </figure>
+      <figure class="panel" aria-labelledby="flow-t">
+        <figcaption><span class="cc-title" id="flow-t">Arrivals and departures</span><span class="cc-sub">Cumulative, last 90 days</span></figcaption>
+        <div class="pbody"><div class="plot2" id="p-flow"></div><div class="skel" aria-hidden="true"></div></div>
+        <dl class="reads2"><div><dt>Raised</dt><dd id="r-fl-arr">–</dd></div><div><dt>Resolved</dt><dd id="r-fl-dep">–</dd></div><div><dt>Net change</dt><dd id="r-fl-net">–</dd></div></dl>
+        <p class="pnote">When the raised line sits above the resolved line, the queue is growing. A full cumulative flow diagram needs every status change; this is the part that public data supports cheaply.</p>
+      </figure>
+      <figure class="panel" aria-labelledby="fc-t">
+        <figcaption><span class="cc-title" id="fc-t">Forecast</span><span class="cc-sub">Monte Carlo, next 4 weeks</span></figcaption>
+        <div class="pbody"><div class="plot2" id="p-fc"></div><div class="skel" aria-hidden="true"></div></div>
+        <dl class="reads2"><div><dt>At least, 50%</dt><dd id="r-fc-50">–</dd></div><div><dt>At least, 85%</dt><dd id="r-fc-85">–</dd></div><div><dt>At least, 95%</dt><dd id="r-fc-95">–</dd></div></dl>
+        <p class="pnote"><span id="fc-basis">Simulated from recent throughput</span>. A range, not a promise. <span id="r-fc-target"></span></p>
+      </figure>
+    </div>
+    <p class="sc-foot rv">Source: <a href="https://jira.atlassian.com/browse/JRACLOUD" target="_blank" rel="noopener">jira.atlassian.com, project JRACLOUD</a>, public data. Currently <b id="sc-open">–</b> open issues and <b id="sc-res">–</b> resolved in the last year. Computed by a small Cloudflare Worker and cached for ten minutes. I build the same views on your own Jira data, in your tooling.</p>
+  </div>
+</section>
+
 <section class="sec" id="contact" aria-labelledby="contact-h">
   <div class="wrap">
     <div class="cta rv">
@@ -218,5 +266,6 @@
   </div>
 </footer>
 <script src="app.js" defer></script>
+<script src="showcase.js" defer></script>
 </body>
 </html>

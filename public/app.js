@@ -46,7 +46,7 @@
         }
       });
     }, { rootMargin: '-40% 0px -55% 0px' });
-    ['cases', 'about', 'engagements', 'contact'].forEach(function (id) { var s = document.getElementById(id); if (s) spy.observe(s); });
+    ['cases', 'about', 'engagements', 'showcase', 'contact'].forEach(function (id) { var s = document.getElementById(id); if (s) spy.observe(s); });
   }
 
   /* ---------- hero burn-up chart ---------- */
