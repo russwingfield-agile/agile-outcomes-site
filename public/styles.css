@@ -1,5 +1,5 @@
 /* Layout concept: left-aligned editorial grid on a faint delivery-chart grid.
-   The hero is a live burn-up chart; later sections reuse chart language
+   The hero is a three-word device; later sections reuse chart language
    (bars on a time axis, tick marks, readouts) so the whole page reads like a delivery report. */
 :root{
   --bg:#F1F4F6; --surface:#FFFFFF; --surface-2:#E5EBEF; --ink:#0C2233; --muted:#4A5F75; --line:#D2DBE3;
