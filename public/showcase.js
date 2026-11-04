@@ -7,7 +7,7 @@
   var NS = 'http://www.w3.org/2000/svg';
   var DAY = 86400000;
   var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  var data = null, drawn = false;
+  var data = null, drawn = false, cfdStarted = false;
 
   /* ---------- helpers ---------- */
   function el(name, attrs, parent) {
@@ -29,6 +29,14 @@
   function linearTicks(max, n) { var step = niceStep(max, n || 4), out = []; for (var v = 0; v <= max + step * 0.001; v += step) out.push(v); if (out[out.length - 1] < max) out.push(out[out.length - 1] + step); return out; }
   function logTicks(lo, hi) { var out = []; for (var v = lo; v <= hi * 1.0001; v *= 10) out.push(v); return out; }
   function tickLabel(v) { return v >= 1 ? v.toLocaleString('en-GB') : String(v); }
+  function reads(id, pairs) {
+    var dl = document.getElementById(id); if (!dl) return; dl.textContent = '';
+    pairs.forEach(function (p) { var w = document.createElement('div'), t = document.createElement('dt'), v = document.createElement('dd'); t.textContent = p[0]; v.textContent = p[1]; w.appendChild(t); w.appendChild(v); dl.appendChild(w); });
+  }
+  function legend(id, items) {
+    var ul = document.getElementById(id); if (!ul) return; ul.textContent = '';
+    items.forEach(function (i) { var li = document.createElement('li'), m = document.createElement('i'); m.className = i[0]; li.appendChild(m); li.appendChild(document.createTextNode(i[1])); ul.appendChild(li); });
+  }
   function aria(id, str) { var s = document.querySelector('#' + id + ' svg'); if (s) s.setAttribute('aria-label', str); }
 
   /* ---------- canvas, tooltip, axes ---------- */
@@ -190,9 +198,63 @@
     });
     hit.addEventListener('pointerleave', function () { cross.setAttribute('visibility', 'hidden'); });
     var f = d.facts.flow;
-    set('r-fl-arr', num(last.arrived)); set('r-fl-dep', num(last.departed));
-    set('r-fl-net', (F.netChange > 0 ? '+' : F.netChange < 0 ? '−' : '') + num(Math.abs(F.netChange)) + (F.netChange > 0 ? ' (growing)' : F.netChange < 0 ? ' (shrinking)' : ''));
+    set('cap-flow', 'Cumulative items raised and resolved, last 26 weeks');
+    legend('lg-flow', [['lg-raised', 'Raised'], ['lg-resolved', 'Resolved']]);
+    reads('rd-flow', [['Raised', num(last.arrived)], ['Resolved', num(last.departed)], ['Net change', (F.netChange > 0 ? '+' : F.netChange < 0 ? '−' : '') + num(Math.abs(F.netChange)) + (F.netChange > 0 ? ' (growing)' : F.netChange < 0 ? ' (shrinking)' : '')]]);
     aria('p-flow', 'Cumulative items raised and resolved over 26 weeks. ' + num(f.raisedLast26Weeks) + ' raised and ' + num(f.resolvedLast26Weeks) + ' resolved.');
+  }
+
+  /* ---------- 4b. Cumulative flow by status: where items raised in the period now stand ---------- */
+  var cfdData = null;
+  var CF = [['done', 'Closed', 'cf-done'], ['active', 'Being worked', 'cf-active'], ['backlog', 'In the backlog', 'cf-backlog'], ['untriaged', 'Awaiting triage', 'cf-untriaged']];
+  function drawCfd(c) {
+    var host = document.getElementById('p-flow');
+    var s = setup('p-flow', plotH(host.clientWidth)), m = s.m, P = c.points;
+    var ih = s.h - m.t - m.b, iw = s.w - m.l - m.r, last = P[P.length - 1];
+    var yt = linearTicks(Math.max(last.total, 1) * 1.05, 4), top = yt[yt.length - 1];
+    var t0 = Date.parse(P[0].date + 'T00:00:00Z'), t1 = Date.parse(last.date + 'T00:00:00Z');
+    var x = function (d) { return m.l + ((Date.parse(d + 'T00:00:00Z') - t0) / (t1 - t0)) * iw; };
+    var y = function (v) { return m.t + ih - (v / top) * ih; };
+    var xt = [], every = s.w < 520 ? 4 : 2;
+    P.forEach(function (p, i) { if (i < P.length - 1 && (P.length - 2 - i) % every === 0) xt.push([x(p.date), dmy(p.date)]); });
+    var lx = x(last.date);
+    xt = xt.filter(function (t) { return lx - t[0] > 56; });
+    xt.push([x(last.date), dmy(last.date), 'end']);
+    axes(s, { yTicks: yt.map(function (v) { return [y(v), num(v)]; }), xTicks: xt, yTitle: 'Items raised since ' + dmy(P[0].date) + ' (cumulative)', xTitle: 'Date' });
+    // stack from the bottom: closed, being worked, in the backlog, awaiting triage
+    var floor = P.map(function () { return 0; });
+    CF.forEach(function (b) {
+      var up = P.map(function (p, i) { return floor[i] + p[b[0]]; });
+      var top1 = P.map(function (p, i) { return x(p.date).toFixed(1) + ',' + y(up[i]).toFixed(1); });
+      var bot = P.map(function (p, i) { return x(p.date).toFixed(1) + ',' + y(floor[i]).toFixed(1); }).reverse();
+      el('polygon', { points: top1.concat(bot).join(' '), class: 'cf ' + b[2] }, s.svg);
+      el('polyline', { points: top1.join(' '), class: 'cf-edge' }, s.svg);
+      floor = up;
+    });
+    var cross = el('line', { y1: m.t, y2: m.t + ih, class: 'cross', visibility: 'hidden' }, s.svg);
+    var hit = el('rect', { x: m.l, y: m.t, width: iw, height: ih, fill: 'transparent' }, s.svg);
+    hit.addEventListener('pointermove', function (e) {
+      var r = s.svg.getBoundingClientRect(), px = e.clientX - r.left, best = 0, bd = 1e9;
+      P.forEach(function (p, i) { var dd = Math.abs(x(p.date) - px); if (dd < bd) { bd = dd; best = i; } });
+      var p = P[best];
+      hit.setAttribute('data-tip', dmyFull(p.date) + ': ' + num(p.total) + ' raised, ' + num(p.done) + ' closed, ' + num(p.active) + ' being worked, ' + num(p.backlog) + ' in backlog, ' + num(p.untriaged) + ' awaiting triage');
+      cross.setAttribute('x1', x(p.date)); cross.setAttribute('x2', x(p.date)); cross.setAttribute('visibility', 'visible');
+    });
+    hit.addEventListener('pointerleave', function () { cross.setAttribute('visibility', 'hidden'); });
+    var pc = function (n) { return last.total ? Math.round((n / last.total) * 100) + '%' : '–'; };
+    set('cap-flow', 'Where the items raised in the last 26 weeks stand, fortnight by fortnight');
+    legend('lg-flow', CF.slice().reverse().map(function (b) { return ['lg-cf ' + b[2], b[1]]; }));
+    reads('rd-flow', [['Raised in the period', num(last.total)], ['Closed', pc(last.done)], ['Being worked', pc(last.active)], ['In the backlog', pc(last.backlog)], ['Awaiting triage', pc(last.untriaged)]]);
+    aria('p-flow', 'Stacked area chart of the ' + num(last.total) + ' items raised in the last 26 weeks by where they stand: ' + pc(last.done) + ' closed, ' + pc(last.active) + ' being worked, ' + pc(last.backlog) + ' in the backlog and ' + pc(last.untriaged) + ' awaiting triage.');
+  }
+  function drawFlowAny(d) { if (cfdData) drawCfd(cfdData); else drawFlow(d); }
+  function loadCfd(n) {
+    var note = document.getElementById('cfd-note');
+    fetch('/api/cfd', { headers: { Accept: 'application/json' } }).then(function (r) { if (!r.ok) throw new Error('status ' + r.status); return r.json(); }).then(function (c) {
+      if (c.complete) { cfdData = c; if (note) note.hidden = true; if (drawn) drawFlowAny(data); return; }
+      if (note) { note.hidden = false; note.textContent = 'Building the status history for this chart: ' + c.progress + '% done.'; }
+      if (n < 40) setTimeout(function () { loadCfd(n + 1); }, 4000); else if (note) note.hidden = true;
+    }).catch(function () { if (note) note.hidden = true; });
   }
 
   /* ---------- 5. Forecast against delivery, over time ---------- */
@@ -259,7 +321,7 @@
   function state(name) { sec.setAttribute('data-state', name); }
   function draw() {
     if (!data) return;
-    [drawThroughput, drawLead, drawAge, drawFlow, drawForecast].forEach(function (f) { try { f(data); } catch (e) { if (window.console) console.error(f.name, e); } });
+    [drawThroughput, drawLead, drawAge, drawFlowAny, drawForecast].forEach(function (f) { try { f(data); } catch (e) { if (window.console) console.error(f.name, e); } });
     drawn = true;
   }
   function show(j) {
@@ -267,6 +329,7 @@
     var when = new Date(j.generatedAt);
     set('sc-updated', 'Updated ' + when.toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }));
     if (!j.insights) poll(0);
+    if (!cfdStarted) { cfdStarted = true; loadCfd(0); }
   }
   // The first visit after a quiet spell gets the numbers straight away and the commentary a few seconds later.
   function poll(n) {

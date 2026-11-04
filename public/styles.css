@@ -295,3 +295,16 @@ footer{padding-block:36px calc(36px + env(safe-area-inset-bottom,0px));color:var
 @media (max-width:560px){.dash-meta .per::before{content:none}.dash-meta .per{flex-basis:100%}}
 .src{margin-top:clamp(18px,2.6vw,28px);font-size:.86rem;color:var(--muted);max-width:78ch;text-wrap:pretty}
 .src a{color:var(--ink)}
+
+/* status flow (stacked area) */
+.cf{stroke:none}
+.cf-done{fill:var(--accent);opacity:.9}
+.cf-active{fill:var(--scope);opacity:.9}
+.cf-backlog{fill:var(--muted);opacity:.5}
+.cf-untriaged{fill:var(--muted);opacity:.2}
+.cf-edge{fill:none;stroke:var(--surface);stroke-width:1}
+.legend .lg-cf{width:14px;height:10px;border-radius:2px}
+.legend .lg-cf.cf-done{background:var(--accent)}
+.legend .lg-cf.cf-active{background:var(--scope)}
+.legend .lg-cf.cf-backlog{background:var(--muted)}
+.legend .lg-cf.cf-untriaged{background:var(--muted)}
