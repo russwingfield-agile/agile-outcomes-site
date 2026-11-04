@@ -1,7 +1,12 @@
 {
   "name": "agile-outcomes-site",
+  "main": "src/index.js",
   "compatibility_date": "2026-11-03",
   "assets": {
-    "directory": "./public"
-  }
+    "directory": "./public",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*"]
+  },
+  // Workers AI writes the dashboard commentary. It has a free daily allowance and needs no key.
+  "ai": { "binding": "AI" }
 }

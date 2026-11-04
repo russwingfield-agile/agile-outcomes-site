@@ -49,6 +49,14 @@
     ['cases', 'about', 'engagements', 'contact'].forEach(function (id) { var s = document.getElementById(id); if (s) spy.observe(s); });
   }
 
+  $('#yr').textContent = new Date().getFullYear();
+
+  /* Everything below belongs to the home page only. */
+  if (!$('#cases')) return;
+
+  /* Warm the Worker and the browser cache so the live dashboard opens with its data ready. */
+  (window.requestIdleCallback || function (f) { setTimeout(f, 1500); })(function () { try { fetch('/api/flow').catch(function () {}); } catch (e) {} });
+
   /* ---------- results: tick marks + count-up ---------- */
   var ticks = $('#ticks');
   if (ticks) {
@@ -95,5 +103,4 @@
     try { navigator.clipboard.writeText(addr).then(function () { done(true); }, function () { done(false); }); }
     catch (e) { done(false); }
   });
-  $('#yr').textContent = new Date().getFullYear();
 })();
