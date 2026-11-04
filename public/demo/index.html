@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="A live delivery dashboard: throughput, lead time, work in progress, flow and a forecast, with plain-English insight on each.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Live delivery dashboard | Agile Outcomes">
+<meta property="og:description" content="A live delivery dashboard with plain-English insight on each chart.">
+<meta property="og:url" content="https://agileoutcomes.co.uk/demo/">
+<meta name="twitter:card" content="summary">
+<link rel="canonical" href="https://agileoutcomes.co.uk/demo/">
+<title>Live delivery dashboard | Agile Outcomes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,200..800&family=Instrument+Sans:wght@400..700&family=JetBrains+Mono:wght@400..600&display=swap">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230C2233'/%3E%3Cpath d='M5 25H11V19H17V13H23V7H27' fill='none' stroke='%233DD0A5' stroke-width='3' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/styles.css">
+
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="top" id="top">
+  <div class="wrap bar">
+    <a class="brand" href="/" aria-label="Agile Outcomes, home">
+      <svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8"/><path d="M5 25H11V19H17V13H23V7H27" fill="none" stroke-width="3" stroke-linejoin="round"/></svg>
+      <span>Agile Outcomes</span>
+    </a>
+    <nav class="nav" aria-label="Main">
+      <a href="/#cases">Case studies</a>
+      <a href="/#about">About</a>
+      <a href="/#engagements">Engagements</a>
+      <a href="/demo/" aria-current="true">Live demo</a>
+      <a href="/#contact">Contact</a>
+    </nav>
+    <div class="bar-actions">
+      <button class="theme" id="theme" type="button" aria-label="Switch to dark theme">
+        <span class="i-moon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z"/></svg></span>
+        <span class="i-sun" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></span>
+      </button>
+      <a class="btn btn-sm" href="/#book">Book a call</a>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+
+<section class="dash" id="showcase" aria-labelledby="dash-h" data-state="loading">
+  <div class="wrap">
+    <header class="dash-head">
+      <div>
+        <p class="eyebrow">Delivery dashboard</p>
+        <h1 id="dash-h">Cloud platform delivery</h1>
+      </div>
+      <p class="dash-meta"><span class="dot" aria-hidden="true"></span><span id="sc-updated">Loading live data</span><span id="sc-period" class="per"></span></p>
+    </header>
+
+    <div class="sc-error" role="alert"><p>The dashboard could not load just now.</p><button type="button" class="btn btn-ghost btn-sm" id="sc-retry">Try again</button></div>
+
+    <div class="dash-body">
+      <section class="overall" aria-labelledby="ov-h">
+        <h2 id="ov-h">Overall</h2>
+        <div class="insight big" id="in-overall" hidden><p class="in-t"></p></div>
+        <ul class="kpis" id="kpis">
+          <li><p class="k">Throughput, last 4 weeks</p><p class="v" id="k-tp">–</p><p class="d" id="k-tp-d"></p></li>
+          <li><p class="k">Median lead time, last 4 weeks</p><p class="v" id="k-lt">–</p><p class="d" id="k-lt-d"></p></li>
+          <li><p class="k">In progress now</p><p class="v" id="k-wip">–</p><p class="d" id="k-wip-d"></p></li>
+          <li><p class="k">Open work, last 30 days</p><p class="v" id="k-net">–</p><p class="d" id="k-net-d"></p></li>
+        </ul>
+      </section>
+
+    <section class="chart" aria-labelledby="tp-t">
+      <header class="chart-head"><h2 id="tp-t">Throughput</h2><p class="cap">Items resolved per week, with the trend over complete weeks</p></header>
+      <dl class="reads2"><div><dt>Last 4 weeks, average</dt><dd id="r-tp-4">–</dd></div><div><dt>Previous 8 weeks, average</dt><dd id="r-tp-8">–</dd></div><div><dt>26-week average</dt><dd id="r-tp-avg">–</dd></div></dl>
+      <div class="pbody"><div class="plot2" id="p-tp"></div><div class="skel" aria-hidden="true"></div></div>
+      <ul class="legend" id="lg-tp" aria-hidden="true"><li><i class="lg-bar"></i>Items resolved per week</li><li><i class="lg-part"></i>Week in progress</li><li><i class="lg-trend"></i>Trend</li></ul>
+      <div class="insight" id="in-tp" hidden><p class="in-k">Insight</p><p class="in-t"></p></div>
+    </section>
+    <section class="chart" aria-labelledby="lt-t">
+      <header class="chart-head"><h2 id="lt-t">Lead time</h2><p class="cap">Days from raised to resolved, by week of resolution</p></header>
+      <dl class="reads2"><div><dt>Median, last 4 weeks</dt><dd id="r-lt-4">–</dd></div><div><dt>Median, previous 8 weeks</dt><dd id="r-lt-8">–</dd></div><div><dt>85th percentile, 26 weeks</dt><dd id="r-lt-p85">–</dd></div></dl>
+      <div class="pbody"><div class="plot2" id="p-lt"></div><div class="skel" aria-hidden="true"></div></div>
+      <ul class="legend" id="lg-lt" aria-hidden="true"><li><i class="lg-dot"></i>Each resolved item</li><li><i class="lg-med"></i>Weekly median</li><li><i class="lg-raised"></i>Weekly 85th percentile</li></ul>
+      <div class="insight" id="in-lt" hidden><p class="in-k">Insight</p><p class="in-t"></p></div>
+    </section>
+    <section class="chart" aria-labelledby="age-t">
+      <header class="chart-head"><h2 id="age-t">Work in progress by age</h2><p class="cap">Items currently in progress, by status and days since raised</p></header>
+      <dl class="reads2"><div><dt>In progress</dt><dd id="r-age-n">–</dd></div><div><dt>Within the median lead time</dt><dd id="r-age-a">–</dd></div><div><dt>Median to 85th percentile</dt><dd id="r-age-b">–</dd></div><div><dt>Beyond the 85th percentile</dt><dd id="r-age-c">–</dd></div></dl>
+      <div class="pbody"><div class="plot2" id="p-age"></div><div class="skel" aria-hidden="true"></div></div>
+      <ul class="legend" id="lg-age" aria-hidden="true"><li><i class="lg-pt"></i>Within the 85th percentile</li><li><i class="lg-late"></i>Beyond the 85th percentile</li><li><i class="lg-p50"></i>Median lead time</li><li><i class="lg-p85"></i>85th percentile lead time</li></ul>
+      <div class="insight" id="in-age" hidden><p class="in-k">Insight</p><p class="in-t"></p></div>
+    </section>
+    <section class="chart" aria-labelledby="flow-t">
+      <header class="chart-head"><h2 id="flow-t">Flow of work</h2><p class="cap">Cumulative items raised and resolved, last 26 weeks</p></header>
+      <dl class="reads2"><div><dt>Raised</dt><dd id="r-fl-arr">–</dd></div><div><dt>Resolved</dt><dd id="r-fl-dep">–</dd></div><div><dt>Net change</dt><dd id="r-fl-net">–</dd></div></dl>
+      <div class="pbody"><div class="plot2" id="p-flow"></div><div class="skel" aria-hidden="true"></div></div>
+      <ul class="legend" id="lg-flow" aria-hidden="true"><li><i class="lg-raised"></i>Raised</li><li><i class="lg-resolved"></i>Resolved</li></ul>
+      <div class="insight" id="in-flow" hidden><p class="in-k">Insight</p><p class="in-t"></p></div>
+    </section>
+    <section class="chart" aria-labelledby="fc-t">
+      <header class="chart-head"><h2 id="fc-t">Forecast</h2><p class="cap">What the next four weeks were forecast to deliver, week by week, against what was delivered</p></header>
+      <dl class="reads2"><div><dt>Next 4 weeks, at least (50%)</dt><dd id="r-fc-50">–</dd></div><div><dt>At least (85%)</dt><dd id="r-fc-85">–</dd></div><div><dt>At least (95%)</dt><dd id="r-fc-95">–</dd></div><div><dt>Past forecasts that held</dt><dd id="r-fc-held">–</dd></div></dl>
+      <div class="pbody"><div class="plot2" id="p-fc"></div><div class="skel" aria-hidden="true"></div></div>
+      <ul class="legend" id="lg-fc" aria-hidden="true"><li><i class="lg-band2"></i>5th to 95th percentile</li><li><i class="lg-band"></i>15th to 85th percentile</li><li><i class="lg-med"></i>Median forecast</li><li><i class="lg-act"></i>Delivered in those 4 weeks</li></ul>
+      <div class="insight" id="in-fc" hidden><p class="in-k">Insight</p><p class="in-t"></p></div>
+    </section>
+      <section class="overall closing" aria-labelledby="sum-h" id="sum-box" hidden>
+        <h2 id="sum-h">Where to focus</h2>
+        <div class="insight big" id="in-summary"><p class="in-t"></p></div>
+        <p class="gen" id="sc-gen"></p>
+      </section>
+    </div>
+    <p class="src">Data source: the public Jira Cloud project at <a href="https://jira.atlassian.com/browse/JRACLOUD" target="_blank" rel="noopener">jira.atlassian.com</a> (Atlassian), used here as a worked example. Team-level figures only, and no individuals are shown.</p>
+  </div>
+</section>
+
+<section class="sec alt" aria-labelledby="demo-cta-h">
+  <div class="wrap">
+    <div class="cta rv">
+      <p class="eyebrow">Your data next</p>
+      <h2 id="demo-cta-h">Want this on your own delivery data?</h2>
+      <p>I build the same views from your own delivery data, in your tooling, with the habits to use them. A delivery health check is a good first step.</p>
+      <div class="actions">
+        <a class="btn" href="/#book">Book a 30-minute call <span class="arr" aria-hidden="true">→</span></a>
+        <a class="btn btn-ghost" href="/#engagements">See the engagements</a>
+      </div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap foot">
+    <p>© <span id="yr">2026</span> Russ Wingfield · Agile Outcomes · Hertfordshire, UK</p>
+    <nav aria-label="Footer"><a href="https://www.linkedin.com/in/russwingfield/" target="_blank" rel="noopener">LinkedIn</a><a href="/">Home</a><a href="#top">Back to top</a></nav>
+  </div>
+</footer>
+<script src="/app.js" defer></script>
+<script src="/showcase.js" defer></script>
+</body>
+</html>

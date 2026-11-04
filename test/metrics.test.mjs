@@ -1,0 +1,31 @@
+import assert from 'node:assert/strict';
+import { buildReport, percentile, startOfWeekUTC } from '../src/metrics.js';
+const DAY = 86400000, now = Date.UTC(2026, 10, 4, 12);
+let s = 7; const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647;
+const resolved = [], arrivals = [], open = [];
+for (let i = 0; i < 1000; i++) { const r = now - rnd() * 190 * DAY; resolved.push({ resolved: r, created: r - Math.exp(rnd() * 7) * DAY }); }
+for (let i = 0; i < 700; i++) arrivals.push(now - rnd() * 190 * DAY);
+for (let i = 0; i < 40; i++) open.push({ id: 90000 + i, status: ['In Progress', 'In Review', 'Waiting for Release'][i % 3], created: now - rnd() * 400 * DAY });
+const t0 = Date.now();
+const rep = buildReport({ resolved, arrivals, open, totals: { open: 7831, resolvedLast365: 1921 } }, now);
+console.log('compute ms', Date.now() - t0, 'json kB', Math.round(JSON.stringify(rep).length / 1024));
+assert.equal(percentile([1, 2, 3, 4, 5], 0.5), 3);
+assert.equal(new Date(startOfWeekUTC(now)).getUTCDay(), 1);
+assert.equal(rep.throughput.weeks.length, 27);
+assert.equal(rep.throughput.weeks.at(-1).partial, true);
+assert.equal(rep.leadTime.weekly.length, 26);
+assert.ok(rep.leadTime.p50 < rep.leadTime.p85 && rep.leadTime.p85 < rep.leadTime.p95);
+assert.equal(rep.flow.days.length, 182);
+assert.ok(rep.age.items[0].age >= rep.age.items.at(-1).age);
+const f = rep.forecast;
+assert.ok(f.outcomes.atLeast95 <= f.outcomes.atLeast85 && f.outcomes.atLeast85 <= f.outcomes.atLeast50);
+assert.ok(f.weeksToTarget.p50 <= f.weeksToTarget.p95);
+assert.equal(f.history.at(-1).actual, null);                 // the coming weeks have not happened yet
+assert.equal(f.history.at(-1).week, rep.throughput.weeks.at(-1).week);
+assert.ok(f.history.filter((h) => h.actual != null).length === f.calibration.judged);
+assert.ok(f.calibration.atLeast85Held <= f.calibration.judged);
+assert.ok(['rose', 'fell', 'broadly flat'].includes(rep.facts.throughput.direction));
+assert.ok(rep.facts.workInProgress.itemsInProgress === 40);
+assert.ok(!JSON.stringify(rep).match(/assignee|reporter|displayName|JRACLOUD|atlassian|jira/i), 'no people or source names in the payload');
+console.log(JSON.stringify(rep.facts));
+console.log('ok');
