@@ -194,6 +194,11 @@ export function insightFacts(report, now) {
       raisedLast30Days: arr30, resolvedLast30Days: dep30, netChangeLast30Days: arr30 - dep30,
       last30DaysDirection: arr30 > dep30 ? 'open work grew' : arr30 < dep30 ? 'open work shrank' : 'open work was unchanged',
     },
+    funnel: report.totals && report.totals.resolvedLast365WorkedOn != null && report.totals.resolvedLast365 ? {
+      resolvedLast365Days: report.totals.resolvedLast365,
+      workedOnBeforeClosingPercent: r0((report.totals.resolvedLast365WorkedOn / report.totals.resolvedLast365) * 100),
+      closedWithoutBeingWorkedOnPercent: r0(100 - (report.totals.resolvedLast365WorkedOn / report.totals.resolvedLast365) * 100),
+    } : null,
     forecastNext4Weeks: f && {
       resolvedAtLeast50Percent: f.outcomes.atLeast50, resolvedAtLeast85Percent: f.outcomes.atLeast85, resolvedAtLeast95Percent: f.outcomes.atLeast95,
       actualLast4Weeks: full.slice(-4).reduce((a, b) => a + b, 0),

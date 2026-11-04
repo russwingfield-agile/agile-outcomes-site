@@ -55,7 +55,7 @@
   if (!$('#cases')) return;
 
   /* Warm the Worker and the browser cache so the live dashboard opens with its data ready. */
-  (window.requestIdleCallback || function (f) { setTimeout(f, 1500); })(function () { try { fetch('/api/flow').catch(function () {}); } catch (e) {} });
+  (window.requestIdleCallback || function (f) { setTimeout(f, 1500); })(function () { try { fetch('/api/flow').catch(function () {}); fetch('/api/cfd').catch(function () {}); } catch (e) {} });
 
   /* ---------- results: tick marks + count-up ---------- */
   var ticks = $('#ticks');

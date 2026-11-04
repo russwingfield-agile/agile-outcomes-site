@@ -15,6 +15,7 @@ Rules you must follow:
 - Each chart entry is two or three short sentences: first what the numbers show, then one concrete suggestion for where delivery could improve.
 - "overall" is three or four sentences for the top of the page: the headline picture across throughput, lead time, work in progress, flow and forecast.
 - "summary" is one or two sentences naming the one or two things to focus on next.
+- If "funnel" is present, the overall entry must say how much of the resolved work was closed without being worked on, using its figures. If "itemsRaisedInPeriod" is present, the flow entry should use it (how many raised items are still untriaged, waiting, being worked or closed).
 - Never mention any company, product, tracker or data source name.
 Reply with one JSON object only, with exactly these string keys: overall, throughput, leadTime, workInProgress, flow, forecast, summary.`;
 

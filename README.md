@@ -11,10 +11,11 @@ Website for Agile Outcomes (agileoutcomes.co.uk).
 
 A single-column dashboard a CTO could read each morning: an overall insight, headline figures, then five charts over time (throughput, lead time, work in progress by age, flow of work, forecast against delivery). Each chart has labelled axes, gridlines, a legend, tooltips and a short written insight.
 
-- `src/index.js` is a Cloudflare Worker. It serves `/api/flow` and passes everything else to `public/`.
+- `src/index.js` is a Cloudflare Worker. It serves `/api/flow` and `/api/cfd` and passes everything else to `public/`.
 - `src/metrics.js` computes the numbers (pure functions, no people data) and the `facts` object that commentary is written from.
 - `src/insights.js` asks Workers AI for the commentary. It sends only `facts`, in a neutral analyst voice, and rejects any reply that is malformed, names the data source, or uses a number that is not in `facts`. It tries twice, then gives up quietly.
 - Caching: the numbers are reused for 10 minutes. Commentary is regenerated in the background when it is older than 10 minutes, so visitors never wait for the model and the browser never calls it. The last good commentary is kept for 7 days as a fallback. If the model is unavailable or the free daily allowance runs out, the charts still show, without commentary.
+- `/api/cfd` builds the four-band status chart (awaiting triage, backlog, being worked, closed) for items raised in the last 26 weeks. Each fortnight and band is one Jira count query (56 in all), fetched in batches and cached for a day, so the first load builds up over a few minutes. Until it is complete the page shows the arrivals and departures chart instead. There is deliberately no issue-type filter.
 - `public/showcase.js` draws the charts. The home page fetches `/api/flow` when idle so the data is warm when the dashboard opens.
 
 Model: `@cf/meta/llama-3.1-8b-instruct-fast`. Set an `INSIGHT_MODEL` variable in Cloudflare to try another Workers AI text model.
