@@ -84,6 +84,7 @@ h3{font-weight:650;font-size:clamp(1.35rem,2.2vw,1.75rem);line-height:1.12;font-
 .theme:hover{background:var(--surface-2)}
 .theme svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 @media (max-width:860px){.nav{display:none}.bar-actions{margin-left:auto}}
+@media (max-width:400px){.bar{gap:10px}.brand{font-size:1.05rem}.bar-actions{gap:8px}.btn-sm{padding-inline:.9em;white-space:nowrap}}
 
 /* hero */
 .hero{position:relative;padding-block:clamp(36px,6vw,88px) clamp(48px,7vw,96px)}
