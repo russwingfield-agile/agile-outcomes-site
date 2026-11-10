@@ -252,12 +252,31 @@ footer{padding-block:36px calc(36px + env(safe-area-inset-bottom,0px));color:var
 .legend .lg-resolved{height:0;border-top:2.5px solid var(--accent);border-radius:0}
 .legend .lg-band2{background:var(--accent);opacity:.12}
 .legend .lg-band{background:var(--accent);opacity:.28}
+.legend .lg-cf-todo,.legend .lg-cf-doing,.legend .lg-cf-done{opacity:1}
+.legend .lg-cf-todo{background:var(--cf-todo)}
+.legend .lg-cf-doing{background:var(--cf-doing)}
+.legend .lg-cf-done{background:var(--cf-done)}
+.legend .lg-wipc{height:10px;background:var(--cf-doing);opacity:.35;border-top:2px solid var(--cf-doing)}
 .legend .lg-act{width:10px;height:10px;border-radius:50%;background:var(--surface);border:2px solid var(--ink)}
 .insight{border-left:3px solid var(--accent);background:var(--bg);border-radius:0 12px 12px 0;padding:14px 18px;display:grid;gap:4px}
 .insight .in-k{font:500 .68rem/1.3 var(--f-mono);letter-spacing:.07em;text-transform:uppercase;color:var(--accent)}
 .insight .in-t{text-wrap:pretty;max-width:78ch}
 .insight.big .in-t{font-size:1.12rem;line-height:1.55}
 .gen{font:500 .72rem/1.4 var(--f-mono);color:var(--muted)}
+
+/* cumulative flow bands: done at the bottom, then in progress, then not started */
+:root{--cf-todo:#8FA3B5;--cf-doing:#C97A12;--cf-done:#0B7A5E}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--cf-todo:#5C7488;--cf-doing:#E9A03B;--cf-done:#3DD0A5}}
+:root[data-theme="dark"]{--cf-todo:#5C7488;--cf-doing:#E9A03B;--cf-done:#3DD0A5}
+.cf{stroke:var(--surface);stroke-width:.8;stroke-linejoin:round}
+.cf.todo{fill:var(--cf-todo);opacity:.55}
+.cf.doing{fill:var(--cf-doing);opacity:.9}
+.cf.done{fill:var(--cf-done);opacity:.9}
+.wipa{fill:var(--cf-doing);opacity:.22}
+.wipl{fill:none;stroke:var(--cf-doing);stroke-width:2.2;stroke-linejoin:round;stroke-linecap:round}
+.sub-t{margin:6px 0 -4px;font:500 .72rem/1.3 var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.pbody.short{min-height:170px}
+.chart[hidden]{display:none}
 
 /* chart marks */
 .gl{stroke:var(--grid);stroke-width:1}

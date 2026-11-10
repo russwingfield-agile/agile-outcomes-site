@@ -167,6 +167,80 @@
     aria('p-age', A.count + ' items are in progress. ' + a + ' are younger than the median lead time, ' + b + ' are between the median and the 85th percentile, and ' + c + ' are older than the 85th percentile.');
   }
 
+  /* ---------- 3b. Cumulative flow, from each item's status history ---------- */
+  function drawCFD(d) {
+    var C = d.cfd, host = document.getElementById('p-cfd');
+    var s = setup('p-cfd', plotH(host.clientWidth) + 20), m = s.m;
+    var D = C.days, n = D.length, ih = s.h - m.t - m.b, iw = s.w - m.l - m.r, last = D[n - 1];
+    var total = function (p) { return p.todo + p.doing + p.done; };
+    var yt = linearTicks(total(last) * 1.04, 4), top = yt[yt.length - 1];
+    var y = function (v) { return m.t + ih - (v / top) * ih; }, x = function (i) { return m.l + (i / (n - 1)) * iw; };
+    var xt = [], stepD = s.w < 520 ? 56 : 28;
+    for (var i = n - 1; i >= 0; i -= stepD) xt.unshift([x(i), dmy(D[i].day)]);
+    axes(s, { yTicks: yt.map(function (v) { return [y(v), num(v)]; }), xTicks: xt, yTitle: 'Items raised in the period', xTitle: 'Date' });
+    // bottom to top: done, in progress, not started
+    function band(lo, hi, cls) {
+      var up = D.map(function (p, i) { return x(i).toFixed(1) + ',' + y(hi(p)).toFixed(1); });
+      var dn = D.map(function (p, i) { return x(i).toFixed(1) + ',' + y(lo(p)).toFixed(1); }).reverse();
+      el('polygon', { points: up.concat(dn).join(' '), class: 'cf ' + cls }, s.svg);
+    }
+    band(function () { return 0; }, function (p) { return p.done; }, 'done');
+    band(function (p) { return p.done; }, function (p) { return p.done + p.doing; }, 'doing');
+    band(function (p) { return p.done + p.doing; }, total, 'todo');
+    var cross = el('line', { y1: m.t, y2: m.t + ih, class: 'cross', visibility: 'hidden' }, s.svg);
+    var hit = el('rect', { x: m.l, y: m.t, width: iw, height: ih, fill: 'transparent' }, s.svg);
+    hit.addEventListener('pointermove', function (e) {
+      var r = s.svg.getBoundingClientRect(), i = Math.max(0, Math.min(n - 1, Math.round(((e.clientX - r.left - m.l) / iw) * (n - 1)))), p = D[i];
+      hit.setAttribute('data-tip', dmyFull(p.day) + ': ' + num(p.done) + ' done, ' + num(p.doing) + ' in progress, ' + num(p.todo) + ' not started');
+      cross.setAttribute('x1', x(i)); cross.setAttribute('x2', x(i)); cross.setAttribute('visibility', 'visible');
+    });
+    hit.addEventListener('pointerleave', function () { cross.setAttribute('visibility', 'hidden'); });
+    var f = d.facts.cumulativeFlow;
+    set('r-cf-raised', num(f.itemsRaisedInWindow)); set('r-cf-done', num(f.doneNow) + ' (' + f.doneSharePercent + '%)'); set('r-cf-doing', num(f.inProgressNow)); set('r-cf-todo', num(f.notStartedNow));
+    aria('p-cfd', 'Cumulative flow of the ' + num(f.itemsRaisedInWindow) + ' items raised in the last 26 weeks. Today ' + num(f.doneNow) + ' are done, ' + num(f.inProgressNow) + ' are in progress and ' + num(f.notStartedNow) + ' have not started.');
+  }
+
+  /* ---------- 3c. Work in progress over time: how many, and how old ---------- */
+  function drawWip(d) {
+    var W = d.wip.weeks, n = W.length, host = document.getElementById('p-wip');
+    var h = host.clientWidth < 520 ? 210 : 230;
+    var every = host.clientWidth < 520 ? 6 : 4;
+    function frame(id, top, label, tickFmt) {
+      var s = setup(id, h), m = s.m, ih = s.h - m.t - m.b, iw = s.w - m.l - m.r, bw = iw / n;
+      var yt = linearTicks(top, 3); top = yt[yt.length - 1];
+      var y = function (v) { return m.t + ih - (v / top) * ih; }, x = function (i) { return m.l + (i + 0.5) * bw; };
+      var xt = []; W.forEach(function (w, i) { if (i % every === 0) xt.push([x(i), dmy(w.week)]); });
+      axes(s, { yTicks: yt.map(function (v) { return [y(v), tickFmt(v)]; }), xTicks: xt, yTitle: label, xTitle: 'Week commencing' });
+      return { s: s, m: m, ih: ih, iw: iw, bw: bw, y: y, x: x };
+    }
+    function path(g, key) {
+      var d = '', pen = false;
+      W.forEach(function (w, i) { if (w[key] == null) { pen = false; return; } d += (pen ? 'L' : 'M') + g.x(i).toFixed(1) + ',' + g.y(w[key]).toFixed(1); pen = true; });
+      return d;
+    }
+    function targets(g, tip) {
+      W.forEach(function (w, i) { el('rect', { x: g.m.l + i * g.bw, y: g.m.t, width: g.bw, height: g.ih, fill: 'transparent', 'data-tip': tip(w) }, g.s.svg); });
+    }
+    var maxW = Math.max.apply(null, W.map(function (w) { return w.wip; })) * 1.1 || 1;
+    var a = frame('p-wip', maxW, 'Items', num);
+    var area = 'M' + a.x(0).toFixed(1) + ',' + a.y(0).toFixed(1) + W.map(function (w, i) { return 'L' + a.x(i).toFixed(1) + ',' + a.y(w.wip).toFixed(1); }).join('') + 'L' + a.x(n - 1).toFixed(1) + ',' + a.y(0).toFixed(1) + 'Z';
+    el('path', { d: area, class: 'wipa' }, a.s.svg);
+    el('path', { d: path(a, 'wip'), class: 'wipl' }, a.s.svg);
+    el('circle', { cx: a.x(n - 1), cy: a.y(W[n - 1].wip), r: 3.6, class: 'mk', stroke: 'var(--cf-doing)' }, a.s.svg);
+    targets(a, function (w) { return 'Week of ' + dmyFull(w.week) + ': ' + w.wip + ' in progress' + (w.partial ? ' (so far this week)' : ''); });
+
+    var maxA = Math.max.apply(null, W.map(function (w) { return w.p85 || 0; })) * 1.1 || 10;
+    var b = frame('p-wage', maxA, 'Days', num);
+    el('path', { d: path(b, 'p85'), class: 'ln sc', 'stroke-dasharray': '6 4' }, b.s.svg);
+    el('path', { d: path(b, 'p50'), class: 'ln ac' }, b.s.svg);
+    targets(b, function (w) { return 'Week of ' + dmyFull(w.week) + ': ' + (w.p50 == null ? 'too few items to measure' : 'median age ' + days(w.p50) + ', 85th percentile ' + days(w.p85)); });
+
+    var f = d.facts.workInProgress.overTime;
+    set('r-wp-now', num(f.itemsNow)); set('r-wp-ago', num(f.itemsFourWeeksAgo)); set('r-wp-age', days(f.medianAgeNowDays)); set('r-wp-agoage', days(f.medianAgeFourWeeksAgoDays));
+    aria('p-wip', 'Items in progress each week over 26 weeks, between ' + num(f.lowestItems) + ' and ' + num(f.peakItems) + '. ' + num(f.itemsNow) + ' now, against ' + num(f.itemsFourWeeksAgo) + ' four weeks ago.');
+    aria('p-wage', 'Median and 85th percentile age of items in progress, by week. Median age now ' + days(f.medianAgeNowDays) + ', against ' + days(f.medianAgeFourWeeksAgoDays) + ' four weeks ago.');
+  }
+
   /* ---------- 4. Flow ---------- */
   function drawFlow(d) {
     var F = d.flow, host = document.getElementById('p-flow');
@@ -243,11 +317,15 @@
     set('k-net', (net > 0 ? '+' : net < 0 ? '−' : '') + num(Math.abs(net))); set('k-net-d', num(f.flow.raisedLast30Days) + ' raised, ' + num(f.flow.resolvedLast30Days) + ' resolved');
     set('sc-period', 'Last ' + f.period.weeks + ' weeks, ' + dmy(f.period.from) + ' to ' + dmyFull(f.period.to));
   }
-  var MAP = { overall: 'in-overall', throughput: 'in-tp', leadTime: 'in-lt', workInProgress: 'in-age', flow: 'in-flow', forecast: 'in-fc', summary: 'in-summary' };
+  var MAP = { overall: 'in-overall', throughput: 'in-tp', leadTime: 'in-lt', workInProgress: 'in-age', cumulativeFlow: 'in-cfd', flow: 'in-flow', forecast: 'in-fc', summary: 'in-summary' };
   function commentary(d) {
     var ins = d.insights;
-    Object.keys(MAP).forEach(function (k) {
-      var box = document.getElementById(MAP[k]); if (!box) return;
+    // with status history the work-in-progress commentary belongs to the over-time chart
+    var map = {}; Object.keys(MAP).forEach(function (k) { map[k] = MAP[k]; });
+    if (hasHistory(d)) map.workInProgress = 'in-wip';
+    ['in-age', 'in-wip', 'in-cfd'].forEach(function (id) { var b = document.getElementById(id); if (b && Object.keys(map).every(function (k) { return map[k] !== id; })) b.hidden = true; });
+    Object.keys(map).forEach(function (k) {
+      var box = document.getElementById(map[k]); if (!box) return;
       var p = box.querySelector('.in-t');
       if (ins && ins[k]) { p.textContent = ins[k]; box.hidden = false; } else box.hidden = true;
     });
@@ -257,9 +335,14 @@
 
   /* ---------- load, draw, redraw ---------- */
   function state(name) { sec.setAttribute('data-state', name); }
+  function hasHistory(d) { return !!(d.cfd && d.wip && d.facts && d.facts.cumulativeFlow && d.facts.workInProgress.overTime); }
   function draw() {
     if (!data) return;
-    [drawThroughput, drawLead, drawAge, drawFlow, drawForecast].forEach(function (f) { try { f(data); } catch (e) { if (window.console) console.error(f.name, e); } });
+    // The status-history charts replace the snapshot by age when the history is available; otherwise the snapshot stays.
+    var hist = hasHistory(data);
+    ['cfd-card', 'wip-card'].forEach(function (id) { var c = document.getElementById(id); if (c) c.hidden = !hist; });
+    var old = document.getElementById('age-card'); if (old) old.hidden = hist;
+    (hist ? [drawThroughput, drawLead, drawCFD, drawWip, drawFlow, drawForecast] : [drawThroughput, drawLead, drawAge, drawFlow, drawForecast]).forEach(function (f) { try { f(data); } catch (e) { if (window.console) console.error(f.name, e); } });
     drawn = true;
   }
   function show(j) {

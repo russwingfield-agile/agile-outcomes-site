@@ -103,6 +103,66 @@ export function arrivalsDepartures(arrivals, resolved, now, windowDays = WEEKS *
   return { windowDays, days, netChange: ca - cd };
 }
 
+// ---- Status history: cumulative flow and work in progress over time ----
+// An item here is { created, resolved|null, current, changes: [{ t, from, to }] } with status changes oldest first.
+// Only status names and timestamps are used; nothing about people is ever read or returned.
+const DONE_NAME = /^(done|closed|resolved|released|complete|completed|declined|rejected|cancell?ed|won'?t)/i;
+const DOING_NAME = /progress|review|develop|test|verif|implement|building|waiting for release|ready for/i;
+
+// Maps a status name to 'todo', 'doing' or 'done'. The tracker's own categories win; names are only a fallback.
+export function categoryOf(name, map) {
+  if (map && map[name]) return map[name];
+  if (!name) return 'todo';
+  if (DONE_NAME.test(name)) return 'done';
+  if (DOING_NAME.test(name)) return 'doing';
+  return 'todo';
+}
+
+export function statusAt(item, t) {
+  if (t < item.created) return null;
+  let s = (item.changes.length && item.changes[0].from) || item.current;
+  for (const c of item.changes) { if (c.t <= t) s = c.to; else break; }
+  return s;
+}
+function stateAt(item, t, map) {
+  if (item.resolved != null && t >= item.resolved) return 'done';
+  const s = statusAt(item, t);
+  return s == null ? null : categoryOf(s, map);
+}
+
+// Daily count of items raised in the window by where they stand that day. Stacked, the top edge is everything raised so far.
+export function cumulativeFlow(items, now, map, windowDays = WEEKS * 7) {
+  const today = startOfDayUTC(now), start = today - (windowDays - 1) * DAY;
+  const cohort = items.filter((it) => it.created >= start && it.created <= now);
+  const days = [];
+  for (let i = 0; i < windowDays; i++) {
+    const t = Math.min(start + (i + 1) * DAY - 1, now);
+    let todo = 0, doing = 0, done = 0;
+    for (const it of cohort) {
+      if (it.created > t) continue;
+      const st = stateAt(it, t, map);
+      if (st === 'done') done++; else if (st === 'doing') doing++; else if (st === 'todo') todo++;
+    }
+    days.push({ day: iso(start + i * DAY), todo, doing, done });
+  }
+  return { windowDays, raised: cohort.length, days };
+}
+
+// Weekly snapshot of everything in progress: how many items, and how old they are (days since raised).
+export function wipTrend(items, now, map, weeks = WEEKS) {
+  const first = startOfWeekUTC(now) - (weeks - 1) * 7 * DAY;
+  const out = [];
+  for (let w = 0; w < weeks; w++) {
+    const partial = w === weeks - 1;
+    const t = partial ? now : first + (w + 1) * 7 * DAY - 1;
+    const ages = [];
+    for (const it of items) if (it.created <= t && stateAt(it, t, map) === 'doing') ages.push((t - it.created) / DAY);
+    const sorted = sortedNums(ages);
+    out.push({ week: iso(first + w * 7 * DAY), partial, wip: ages.length, p50: sorted.length >= 5 ? r1(percentile(sorted, 0.5)) : null, p85: sorted.length >= 5 ? r1(percentile(sorted, 0.85)) : null });
+  }
+  return { weeks: out };
+}
+
 // Monte Carlo: resample recent weekly throughput with replacement.
 function simulate(sample, rnd, horizonWeeks, runs) {
   const totals = [];
@@ -170,6 +230,27 @@ export function insightFacts(report, now) {
   const at = (k) => days[Math.max(0, L - 1 - k)];
   const arr30 = at(0).arrived - at(30).arrived, dep30 = at(0).departed - at(30).departed;
   const f = report.forecast;
+  const wipFacts = (() => {
+    if (!report.wip) return null;
+    const w = report.wip.weeks, nowP = w[w.length - 1], then = w[Math.max(0, w.length - 5)];
+    const wipChange = pct(nowP.wip, then.wip), ageChange = pct(nowP.p50, then.p50);
+    return {
+      itemsNow: nowP.wip, itemsFourWeeksAgo: then.wip, changeVsFourWeeksAgoPercent: wipChange, direction: dirOf(wipChange),
+      medianAgeNowDays: nowP.p50, medianAgeFourWeeksAgoDays: then.p50, ageChangePercent: ageChange, ageDirection: lowerIsBetter(ageChange),
+      peakItems: Math.max(...w.map((x) => x.wip)), lowestItems: Math.min(...w.map((x) => x.wip)),
+    };
+  })();
+  const cfdFacts = (() => {
+    if (!report.cfd) return null;
+    const d = report.cfd.days, last = d[d.length - 1], ago = d[Math.max(0, d.length - 29)];
+    const total = last.todo + last.doing + last.done;
+    return {
+      itemsRaisedInWindow: report.cfd.raised, notStartedNow: last.todo, inProgressNow: last.doing, doneNow: last.done,
+      doneSharePercent: total ? r0((last.done / total) * 100) : 0,
+      inProgressFourWeeksAgo: ago.doing, inProgressChangePercent: pct(last.doing, ago.doing), inProgressDirection: dirOf(pct(last.doing, ago.doing)),
+      notStartedFourWeeksAgo: ago.todo,
+    };
+  })();
   return {
     period: { weeks: WEEKS, from: report.throughput.weeks[0].week, to: report.generatedAt.slice(0, 10) },
     throughput: {
@@ -188,12 +269,14 @@ export function insightFacts(report, now) {
       itemsInProgress: report.age.count, medianAgeDays: report.age.p50,
       itemsOlderThanP85LeadTime: over85.length, shareOlderPercent: report.age.count ? r0((over85.length / report.age.count) * 100) : 0,
       oldestDays: ages.length ? r0(ages[0].age) : null, byStatus: statuses,
+      ...(wipFacts ? { overTime: wipFacts } : {}),
     },
     flow: {
       raisedLast26Weeks: at(0).arrived, resolvedLast26Weeks: at(0).departed, netChange26Weeks: report.flow.netChange,
       raisedLast30Days: arr30, resolvedLast30Days: dep30, netChangeLast30Days: arr30 - dep30,
       last30DaysDirection: arr30 > dep30 ? 'open work grew' : arr30 < dep30 ? 'open work shrank' : 'open work was unchanged',
     },
+    ...(cfdFacts ? { cumulativeFlow: cfdFacts } : {}),
     forecastNext4Weeks: f && {
       resolvedAtLeast50Percent: f.outcomes.atLeast50, resolvedAtLeast85Percent: f.outcomes.atLeast85, resolvedAtLeast95Percent: f.outcomes.atLeast95,
       actualLast4Weeks: full.slice(-4).reduce((a, b) => a + b, 0),
@@ -203,7 +286,7 @@ export function insightFacts(report, now) {
   };
 }
 
-export function buildReport({ resolved, arrivals, open, totals }, now) {
+export function buildReport({ resolved, arrivals, open, totals, history }, now) {
   const tp = throughput(resolved, now);
   const labels = tp.weeks.map((w) => w.week);
   const report = {
@@ -214,7 +297,15 @@ export function buildReport({ resolved, arrivals, open, totals }, now) {
     age: workItemAge(open, now),
     flow: arrivalsDepartures(arrivals, resolved, now),
     forecast: forecast(tp.weeks.filter((w) => !w.partial).map((w) => w.count), labels, now),
+    cfd: null,
+    wip: null,
   };
+  // Status history is optional: without enough of it the page falls back to the snapshot views.
+  if (history && history.items && history.items.length >= 20) {
+    report.cfd = cumulativeFlow(history.items, now, history.categories);
+    report.wip = wipTrend(history.items, now, history.categories);
+    if (!report.cfd.raised) report.cfd = null;
+  }
   report.facts = insightFacts(report, now);
   return report;
 }

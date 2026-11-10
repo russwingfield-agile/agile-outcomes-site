@@ -8,8 +8,8 @@ const INSIGHT_TTL = 600;         // seconds before the commentary is regenerated
 const INSIGHT_KEEP = 7 * 86400;  // the last good commentary is kept this long, as a fallback
 const UA = 'AgileOutcomes-showcase/1.0 (+https://agileoutcomes.co.uk)';
 
-async function jira(params) {
-  const res = await fetch(JIRA + '/rest/api/2/search?' + new URLSearchParams(params), { headers: { Accept: 'application/json', 'User-Agent': UA } });
+async function jira(params, path = 'search') {
+  const res = await fetch(JIRA + '/rest/api/2/' + path + (path === 'search' ? '?' + new URLSearchParams(params) : ''), { headers: { Accept: 'application/json', 'User-Agent': UA } });
   if (!res.ok) throw new Error('Jira responded ' + res.status);
   return res.json();
 }
@@ -26,24 +26,62 @@ async function all(jql, fields, cap = 3000) {
   }
   return out;
 }
+
+// Status history for items raised in the window, items in progress now, and older items that moved in the window
+// (so work carried in from before the window is counted). Only status names and dates are kept.
+// Changelog pages are small, so they are fetched in parallel after the first reply says how many there are.
+const HIST_CAP = 2000, HIST_PAGE = 100;
+async function history(p) {
+  const jql = p + ' AND (created >= -196d OR statusCategory = "In Progress" OR status CHANGED AFTER -196d)';
+  const q = (startAt) => jira({ jql, fields: 'created,resolutiondate,status', expand: 'changelog', startAt: String(startAt), maxResults: String(HIST_PAGE) });
+  const first = await q(0);
+  const size = first.issues.length || HIST_PAGE;
+  const total = Math.min(first.total || 0, HIST_CAP);
+  const starts = [];
+  for (let s = size; s < total; s += size) starts.push(s);
+  const rest = await Promise.all(starts.map(q));
+  const issues = first.issues.concat(...rest.map((r) => r.issues));
+  const seen = new Set();
+  const items = [];
+  for (const i of issues) {
+    if (seen.has(i.key)) continue;
+    seen.add(i.key);
+    const changes = [];
+    for (const h of (i.changelog && i.changelog.histories) || []) {
+      for (const it of h.items || []) if (it.field === 'status') changes.push({ t: ms(h.created), from: it.fromString, to: it.toString });
+    }
+    changes.sort((a, b) => a.t - b.t);
+    items.push({ created: ms(i.fields.created), resolved: i.fields.resolutiondate ? ms(i.fields.resolutiondate) : null, current: i.fields.status && i.fields.status.name, changes });
+  }
+  // The tracker's own grouping of each status into not started, in progress or done.
+  let categories = null;
+  try {
+    const st = await jira({}, 'status');
+    categories = {};
+    for (const x of st) { const k = x.statusCategory && x.statusCategory.key; categories[x.name] = k === 'done' ? 'done' : k === 'indeterminate' ? 'doing' : 'todo'; }
+  } catch (e) { /* names are used instead */ }
+  return { items, categories };
+}
 const count = async (jql) => (await jira({ jql, maxResults: '0' })).total;
 const ms = (s) => Date.parse(s);
 
 async function compute() {
   const now = Date.now();
   const p = 'project = ' + PROJECT;
-  const [resolvedRaw, createdRaw, openRaw, open, resolved365] = await Promise.all([
+  const [resolvedRaw, createdRaw, openRaw, open, resolved365, hist] = await Promise.all([
     all(p + ' AND resolutiondate >= -196d', 'created,resolutiondate'),
     all(p + ' AND created >= -196d', 'created'),
     all(p + ' AND statusCategory = "In Progress"', 'created,status', 400),
     count(p + ' AND resolution is EMPTY'),
     count(p + ' AND resolutiondate >= -365d'),
+    history(p).catch(() => null), // optional: without it the page shows the snapshot views
   ]);
   return buildReport({
     resolved: resolvedRaw.map((i) => ({ created: ms(i.fields.created), resolved: ms(i.fields.resolutiondate) })).filter((r) => r.resolved),
     arrivals: createdRaw.map((i) => ms(i.fields.created)),
     open: openRaw.map((i) => ({ id: Number(String(i.key).split('-').pop()), status: i.fields.status.name, created: ms(i.fields.created) })),
     totals: { open, resolvedLast365: resolved365 },
+    history: hist,
   }, now);
 }
 
