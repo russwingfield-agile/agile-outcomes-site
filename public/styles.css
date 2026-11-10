@@ -123,6 +123,7 @@ h3{font-weight:650;font-size:clamp(1.35rem,2.2vw,1.75rem);line-height:1.12;font-
 .case{background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:clamp(20px,2.6vw,32px);display:grid;gap:18px;align-content:start;min-width:0;transition:transform .25s ease,border-color .25s ease}
 .case:hover{transform:translateY(-3px);border-color:color-mix(in srgb,var(--accent) 55%,var(--line))}
 .c-k{font:500 .72rem/1.4 var(--f-mono);letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.c-tag{display:table;margin:8px 0 0;padding:2px 9px;border:1px solid var(--line);border-radius:999px;color:var(--accent);white-space:nowrap}
 .c-m{font:700 clamp(2.8rem,5vw,4.2rem)/.95 var(--f-display);font-variation-settings:"wdth" 82,"opsz" 96;letter-spacing:-.03em;font-variant-numeric:tabular-nums;display:flex;flex-wrap:wrap;align-items:baseline;gap:.15em .5em}
 .c-m small{font:600 .9rem/1.3 var(--f-body);letter-spacing:0;color:var(--muted);font-variation-settings:normal;max-width:22ch}
 .ticks{display:grid;gap:8px}
