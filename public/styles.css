@@ -73,6 +73,11 @@ h3{font-weight:650;font-size:clamp(1.35rem,2.2vw,1.75rem);line-height:1.12;font-
 .brand svg rect{fill:var(--ink)} .brand svg path{stroke:var(--accent)}
 .nav{display:flex;gap:2px;margin-left:auto}
 .nav a{padding:.5em .85em;border-radius:999px;text-decoration:none;font-size:.94rem;color:var(--muted);transition:color .2s,background .2s}
+.nav-live{display:inline-flex;align-items:center}
+.live-tag{display:inline-flex;align-items:center;gap:6px;margin-left:8px;padding:3px 9px 3px 8px;border-radius:999px;border:1px solid color-mix(in srgb,var(--accent) 38%,transparent);background:color-mix(in srgb,var(--accent) 12%,transparent);color:var(--accent);font:600 .64rem/1.2 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.1em;text-transform:uppercase}
+.live-tag::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 0 color-mix(in srgb,var(--accent) 55%,transparent);animation:livepulse 2s ease-out infinite}
+@keyframes livepulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--accent) 55%,transparent)}70%,100%{box-shadow:0 0 0 6px transparent}}
+@media (prefers-reduced-motion:reduce){.live-tag::before{animation:none}}
 .nav a:hover,.nav a[aria-current="true"]{color:var(--ink);background:var(--surface-2)}
 .bar-actions{display:flex;align-items:center;gap:10px}
 .theme{width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:transparent;display:grid;place-items:center;cursor:pointer;transition:background .2s}
