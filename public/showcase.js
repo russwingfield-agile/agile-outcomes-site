@@ -280,7 +280,7 @@
     var y = function (v) { return m.t + ih - (v / top) * ih; }, x = function (i) { return m.l + (i + 0.5) * (iw / n); };
     var every = s.w < 520 ? 3 : 2, xt = [];
     H.forEach(function (h, i) { if ((n - 1 - i) % every === 0) xt.push([x(i), dmy(h.week)]); });
-    axes(s, { yTicks: yt.map(function (v) { return [y(v), num(v)]; }), xTicks: xt, yTitle: 'Items resolved in the next 4 weeks', xTitle: 'Forecast made in week commencing' });
+    axes(s, { yTicks: yt.map(function (v) { return [y(v), num(v)]; }), xTicks: xt, yTitle: s.w < 520 ? 'Resolved in next 4 weeks' : 'Items resolved in the next 4 weeks', xTitle: 'Forecast made in week commencing' });
     function poly(hiK, loK, cls) {
       var up = H.map(function (h, i) { return x(i).toFixed(1) + ',' + y(h[hiK]).toFixed(1); }), dn = H.map(function (h, i) { return x(i).toFixed(1) + ',' + y(h[loK]).toFixed(1); }).reverse();
       el('polygon', { points: up.concat(dn).join(' '), class: cls }, s.svg);
