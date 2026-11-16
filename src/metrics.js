@@ -1,3 +1,4 @@
+import { insightSignals } from './signals.js';
 // Pure flow-metric calculations. No network and no Worker APIs, so they can be tested with plain Node.
 // Inputs are plain objects; nothing about people (assignees, reporters) is ever read or returned.
 
@@ -251,6 +252,7 @@ export function insightFacts(report, now) {
       notStartedFourWeeksAgo: ago.todo,
     };
   })();
+  const signals = insightSignals(report);
   return {
     period: { weeks: WEEKS, from: report.throughput.weeks[0].week, to: report.generatedAt.slice(0, 10) },
     throughput: {
@@ -277,6 +279,7 @@ export function insightFacts(report, now) {
       last30DaysDirection: arr30 > dep30 ? 'open work grew' : arr30 < dep30 ? 'open work shrank' : 'open work was unchanged',
     },
     ...(cfdFacts ? { cumulativeFlow: cfdFacts } : {}),
+    signals,
     forecastNext4Weeks: f && {
       resolvedAtLeast50Percent: f.outcomes.atLeast50, resolvedAtLeast85Percent: f.outcomes.atLeast85, resolvedAtLeast95Percent: f.outcomes.atLeast95,
       actualLast4Weeks: full.slice(-4).reduce((a, b) => a + b, 0),

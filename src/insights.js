@@ -2,24 +2,26 @@
 // Only summary numbers are sent (see insightFacts in metrics.js). The reply is checked before it is used:
 // it must be well-formed, must not name the data source, and every number in it must come from the supplied facts.
 
-export const DEFAULT_MODEL = '@cf/meta/llama-3.1-8b-instruct-fast';
+export const DEFAULT_MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast'; // a bigger model for sharper reasoning; set INSIGHT_MODEL to override
 export const KEYS = ['overall', 'throughput', 'leadTime', 'workInProgress', 'flow', 'forecast', 'summary'];
 // With status history there is one more entry, for the cumulative flow chart.
 export const HISTORY_KEYS = ['overall', 'throughput', 'leadTime', 'workInProgress', 'cumulativeFlow', 'flow', 'forecast', 'summary'];
 const keysFor = (facts) => (facts && facts.cumulativeFlow ? HISTORY_KEYS : KEYS);
-const MAX_WORDS = { overall: 65, summary: 40, throughput: 48, leadTime: 48, workInProgress: 48, cumulativeFlow: 52, flow: 48, forecast: 48 };
+const MAX_WORDS = { overall: 70, summary: 50, throughput: 62, leadTime: 62, workInProgress: 62, cumulativeFlow: 62, flow: 62, forecast: 62 };
 
-const SYSTEM = `You write the commentary for a delivery dashboard that a CTO reads each morning and in a weekly meeting. They skim. Make every entry land in seconds.
-Voice: confident, direct, plain English. Short sentences. Active verbs. No first person, no hype, no filler, no hedging ("it appears", "may suggest"), no jargon beyond the metric names.
-Structure of each chart entry: sentence one is the verdict, with the key figure in it ("Throughput is up 21.7% to 38.5 a week."). Sentence two is the single action that matters most, as a command ("Hold work in progress where it is and finish the oldest items first."). Two sentences. Never three.
+const SYSTEM = `You write the commentary for a delivery dashboard that a CTO reads each morning and in a weekly meeting. They can already read the charts, so never repeat what a chart plainly shows (a line going up, a number being high). Say what the chart does not show, and what to try.
+Voice: confident, direct, plain English. Short sentences. Active verbs. No first person, no hype, no filler, no hedging, no jargon beyond the metric names.
+Each chart entry has two or three sentences:
+1. The insight: the non-obvious reading, in your own words, with the key figure in it.
+2. The experiment: one concrete thing the team can try, as a command, with the measure that will show whether it worked ("compare median lead time after four weeks").
+The user message gives a "signals" object. For every key that has an entry in signals, build that entry from it: put the signal's insight across in fresh words, then give its experiment as the next action, keeping its figures and its timescale. Do not swap the experiment for generic advice. For keys without a signal, use the other figures and the same two-part shape.
 Rules you must follow:
-- Use only the figures in the JSON the user supplies. Quote them exactly as given. Do not calculate, estimate or invent any number. Do not mention a number that is not in the JSON. One or two figures per entry is plenty.
-- Describe direction using the supplied "direction" words (rose, fell, broadly flat, improved, worsened). Lead time and age: lower is better.
-- Do not explain causes or guess why something happened. Say what the data shows and what to do about it.
-- Be honest: good news is stated as good, bad news as bad, and the action fits. Do not soften a worsening trend.
-- "workInProgress" covers items in progress now and how that count and the median age moved ("overTime" figures, if present). "cumulativeFlow", if present, reads the cumulative flow chart: bands for not started, in progress and done. A widening in progress band means work is starting faster than it finishes; a widening not started band means a growing queue.
-- "overall" is the headline for the top of the page: two or three punchy sentences giving the one-line state of delivery, then what matters most.
-- "summary" is one or two sentences naming the one or two things to do next. Start with the verb.
+- Use only the figures in the JSON. Quote them exactly as given. Do not calculate, estimate or invent any number.
+- Do not use these phrases or ideas: "focus on", "consider", "continue to", "keep an eye", "monitor", "maintain", "it is important", "ensure". Say what to do, concretely.
+- Do not explain causes that the figures do not support. A finding can point at a pattern; the experiment is how the team finds the cause.
+- Be honest: good news is stated as good, bad news as bad. Do not soften a problem.
+- "overall" is the headline for the top of the page: the single most important finding in two or three sentences, ending with what to try first.
+- "summary" is two sentences giving the two experiments to run next (signals.nextActions), each starting with a verb.
 - Never mention any company, product, tracker or data source name.
 Reply with one JSON object only, with exactly the string keys listed by the user message.`;
 
@@ -33,6 +35,7 @@ function allowedNumbers(facts) {
   const out = [];
   (function walk(v) {
     if (typeof v === 'number') out.push(v);
+    else if (typeof v === 'string') out.push(...numbersIn(v));
     else if (v && typeof v === 'object') Object.values(v).forEach(walk);
   })(facts);
   return out.concat([1, 2, 3, 4, 5, 8, 12, 15, 26, 50, 85, 95]);
@@ -50,6 +53,7 @@ export function validate(obj, facts) {
     if (typeof t !== 'string' || t.trim().length < 20) { problems.push('missing or too short: ' + k); continue; }
     if (t.trim().split(/\s+/).length > MAX_WORDS[k]) problems.push('too long: ' + k);
     if (/atlassian|jira|jracloud|confluence|bitbucket/i.test(t)) problems.push('names a source: ' + k);
+    if (/focus on|consider|continue to|keep an eye|monitor|maintain|it is important|ensure/i.test(t)) problems.push('uses a generic phrase: ' + k);
     for (const x of numbersIn(t)) if (!matches(x)) bad.add(x);
   }
   if (bad.size) problems.push('numbers not in the data: ' + [...bad].join(', '));
@@ -73,7 +77,7 @@ export async function generateInsights(env, facts) {
   for (let attempt = 0; attempt < 2; attempt++) {
     let obj = null;
     try {
-      obj = parseReply(await env.AI.run(model, { messages: buildMessages(facts, feedback), max_tokens: 900, temperature: 0.2 }));
+      obj = parseReply(await env.AI.run(model, { messages: buildMessages(facts, feedback), max_tokens: 1100, temperature: 0.2 }));
     } catch (e) { return null; } // the model or its daily allowance is unavailable: keep what we had
     const v = validate(obj, facts);
     if (v.ok) { const text = {}; for (const k of keysFor(facts)) text[k] = obj[k].trim(); return { text, model }; }
