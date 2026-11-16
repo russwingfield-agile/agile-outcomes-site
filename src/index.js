@@ -4,7 +4,7 @@ import { generateInsights } from './insights.js';
 const JIRA = 'https://jira.atlassian.com';
 const PROJECT = 'JRACLOUD';
 const DATA_TTL = 600;            // seconds the computed numbers are reused
-const INSIGHT_TTL = 600;         // seconds before the commentary is regenerated in the background
+const INSIGHT_TTL = 3600;        // seconds before the commentary is regenerated in the background (hourly keeps the bigger model inside the free daily allowance)
 const INSIGHT_KEEP = 7 * 86400;  // the last good commentary is kept this long, as a fallback
 const UA = 'AgileOutcomes-showcase/1.0 (+https://agileoutcomes.co.uk)';
 

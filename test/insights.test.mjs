@@ -11,18 +11,20 @@ const { facts } = buildReport({ resolved, arrivals, open, totals: { open: 1, res
 const f = facts;
 const good = {
   overall: `Throughput ${f.throughput.direction} to ${f.throughput.last4WeeksAverage} items a week over the last 4 weeks, against ${f.throughput.previous8WeeksAverage} before. Open work ${f.flow.last30DaysDirection} in the last 30 days.`,
-  throughput: `Weekly throughput averaged ${f.throughput.weeklyAverage26} over 26 weeks. Protect the steady weeks by limiting work in progress.`,
-  leadTime: `Median lead time is ${f.leadTimeDays.median26Weeks} days and the 85th percentile is ${f.leadTimeDays.p85Of26Weeks} days. Look at the slowest 15% of items first.`,
-  workInProgress: `${f.workInProgress.itemsInProgress} items are in progress and ${f.workInProgress.itemsOlderThanP85LeadTime} are older than the 85th percentile lead time. Review those items this week.`,
-  flow: `${f.flow.raisedLast30Days} items were raised and ${f.flow.resolvedLast30Days} resolved in the last 30 days. Keep an eye on the gap between the two.`,
-  forecast: `At least ${f.forecastNext4Weeks.resolvedAtLeast85Percent} items are likely to be resolved in the next 4 weeks at 85% confidence. Plan commitments against that figure.`,
-  summary: 'Focus on the oldest in-progress items and on keeping throughput steady.',
+  throughput: `Weekly throughput averaged ${f.throughput.weeklyAverage26} over 26 weeks. Cap work in progress for four weeks and compare lead time.`,
+  leadTime: `Median lead time is ${f.leadTimeDays.median26Weeks} days and the 85th percentile is ${f.leadTimeDays.p85Of26Weeks} days. Trace the five slowest items and find the shared wait.`,
+  workInProgress: `${f.workInProgress.itemsInProgress} items are in progress and ${f.workInProgress.itemsOlderThanP85LeadTime} are older than the 85th percentile lead time. Finish, split or close those items this week.`,
+  flow: `${f.flow.raisedLast30Days} items were raised and ${f.flow.resolvedLast30Days} resolved in the last 30 days. Agree an intake limit and compare the gap in four weeks.`,
+  forecast: `At least ${f.forecastNext4Weeks.resolvedAtLeast85Percent} items are likely to be resolved in the next 4 weeks at 85% confidence. Commit to that figure and re-forecast every Monday.`,
+  summary: 'Finish or close the oldest in-progress items this week. Compare median lead time in four weeks.',
 };
 const ai = (replies) => { let i = 0; return { run: async () => ({ response: typeof replies[i] === 'string' ? replies[i++] : JSON.stringify(replies[i++ % replies.length]) }) }; };
 
 assert.ok(validate(good, facts).ok, JSON.stringify(validate(good, facts)));
 // invented number is rejected
 assert.ok(!validate({ ...good, throughput: 'Throughput grew by 73.1% in a fortnight. Keep going and do more.' }, facts).ok);
+// generic advice is rejected
+assert.ok(!validate({ ...good, summary: 'Focus on the oldest items and continue to monitor throughput each week.' }, facts).ok);
 // names a source is rejected
 assert.ok(!validate({ ...good, summary: 'Atlassian should focus on the oldest items in progress.' }, facts).ok);
 assert.deepEqual(Object.keys(good), KEYS);
@@ -43,4 +45,10 @@ assert.equal(await generateInsights({}, facts), null);
 const prompt = JSON.stringify(buildMessages(facts));
 assert.ok(!/assignee|reporter|displayName|jira|atlassian|JRACLOUD/i.test(prompt.replace(/Never mention any company, product, tracker or data source name\./, '')));
 console.log('prompt chars', prompt.length);
+// the prompt carries the signals, and the model may reuse numbers that appear only inside them
+assert.ok(facts.signals && facts.signals.overall && facts.signals.nextActions.length);
+assert.match(prompt, /nextActions/);
+for (const [k, v] of Object.entries(facts.signals)) if (k !== 'nextActions') assert.ok(v.insight && v.experiment, k);
+const nums = (facts.signals.forecast.insight.match(/\d+/g) || []).filter((x) => +x > 20)[0];
+assert.ok(validate({ ...good, forecast: `Plan on ${nums} items. Commit to ${nums} and re-forecast every Monday.` }, facts).ok);
 console.log('ok');

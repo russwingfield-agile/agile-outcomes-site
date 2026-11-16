@@ -57,3 +57,26 @@ assert.equal(rep.cfd, null, 'no history: no cfd'); assert.equal(rep.wip, null); 
 assert.ok(!JSON.stringify(repH).match(/assignee|reporter|displayName/i));
 console.log(JSON.stringify(rep.facts));
 console.log('ok');
+
+// ---- second-layer signals ----
+{
+  const { insightSignals } = await import('../src/signals.js');
+  const D = 86400000, n0 = Date.UTC(2026, 10, 4, 12);
+  const wk = (counts) => ({ weeks: counts.map((c, i) => ({ week: 'w' + i, count: c, partial: false })).concat([{ week: 'now', count: 3, partial: true }]) });
+  const base = (counts, extra = {}) => ({
+    throughput: wk(counts), leadTime: { p50: 10, p85: 30, p95: 120, points: Array.from({ length: 60 }, (_, i) => [i, i % 2 ? 3 : 150]) },
+    age: { count: 12, items: Array.from({ length: 12 }, (_, i) => ({ id: i, status: i < 9 ? 'Waiting for review' : 'In Progress', age: 100 - i * 5 })) },
+    flow: { days: Array.from({ length: 182 }, (_, i) => ({ arrived: i * 3, departed: i * 2 })), netChange: 181 }, cfd: null,
+    forecast: { outcomes: { atLeast50: 80, atLeast85: 60, atLeast95: 50 }, calibration: { judged: 10, atLeast85Held: 6 } }, ...extra });
+  const lumpy = insightSignals(base([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 60, 70, 80, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]));
+  assert.equal(lumpy.throughput.id, 'lumpy-output');
+  assert.equal(insightSignals(base(Array(26).fill(30))).throughput.id, 'steady-output');
+  assert.equal(lumpy.leadTime.id, 'two-populations');
+  assert.equal(lumpy.workInProgress.id, 'stuck-in-status'); // 9 of 12 wait in review; the plain working status is ignored
+  assert.equal(lumpy.forecast.id, 'overconfident');
+  assert.ok(lumpy.flow.insight.includes('1.5')); // 3 arrive for 2 resolved
+  assert.ok(lumpy.overall && lumpy.nextActions.length === 2);
+  // too little data: no signal rather than a made-up one
+  assert.equal(insightSignals(base([5, 5, 5])).throughput, undefined);
+}
+console.log('signals ok');
