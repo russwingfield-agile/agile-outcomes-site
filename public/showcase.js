@@ -317,6 +317,28 @@
     set('k-net', (net > 0 ? '+' : net < 0 ? '−' : '') + num(Math.abs(net))); set('k-net-d', num(f.flow.raisedLast30Days) + ' raised, ' + num(f.flow.resolvedLast30Days) + ' resolved');
     set('sc-period', 'Last ' + f.period.weeks + ' weeks, ' + dmy(f.period.from) + ' to ' + dmyFull(f.period.to));
   }
+  /* ---------- items to start with, listed under the finding they belong to ---------- */
+  var TRACKER = 'https://jira.atlassian.com/browse/JRACLOUD-';
+  function evidence(d, map) {
+    var ev = d.evidence || {};
+    Object.keys(map).forEach(function (k) {
+      var box = document.getElementById(map[k]); if (!box || !box.parentNode) return;
+      var id = 'ev-' + map[k], old = document.getElementById(id), e = ev[k];
+      if (!e || !e.items || !e.items.length) { if (old) old.hidden = true; return; }
+      if (!old) { old = document.createElement('div'); old.id = id; old.className = 'evi'; box.parentNode.insertBefore(old, box.nextSibling); }
+      old.hidden = false;
+      old.innerHTML = '';
+      var t = document.createElement('p'); t.className = 'evi-k'; t.textContent = e.title; old.appendChild(t);
+      var ol = document.createElement('ol'); ol.className = 'evi-l';
+      e.items.forEach(function (it) {
+        var li = document.createElement('li'), a = document.createElement('a');
+        a.href = TRACKER + it.id; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.textContent = '#' + it.id;
+        var sp = document.createElement('span'); sp.textContent = it.note;
+        li.appendChild(a); li.appendChild(sp); ol.appendChild(li);
+      });
+      old.appendChild(ol);
+    });
+  }
   var MAP = { overall: 'in-overall', throughput: 'in-tp', leadTime: 'in-lt', workInProgress: 'in-age', cumulativeFlow: 'in-cfd', flow: 'in-flow', forecast: 'in-fc', summary: 'in-summary' };
   function commentary(d) {
     var ins = d.insights;
@@ -329,6 +351,7 @@
       var p = box.querySelector('.in-t');
       if (ins && ins[k]) { p.textContent = ins[k]; box.hidden = false; } else box.hidden = true;
     });
+    evidence(d, map);
     var sum = document.getElementById('sum-box'); if (sum) sum.hidden = !(ins && ins.summary);
     set('sc-gen', ins ? 'Commentary is generated from the figures above and refreshed every few minutes.' : '');
   }

@@ -80,3 +80,20 @@ console.log('ok');
   assert.equal(insightSignals(base([5, 5, 5])).throughput, undefined);
 }
 console.log('signals ok');
+{
+  const { buildEvidence } = await import('../src/metrics.js');
+  const { insightSignals } = await import('../src/signals.js');
+  const D = 86400000, n0 = Date.UTC(2026, 10, 4, 12);
+  const items = Array.from({ length: 12 }, (_, i) => ({ id: 100 + i, status: i < 8 ? 'In Progress' : 'In Review', age: 200 - i * 10, idle: i < 7 ? 90 - i : 3 }));
+  const rep = { age: { items, count: 12 }, evidence: {} };
+  const ev = buildEvidence(rep, [{ id: 1, created: n0 - 300 * D, resolved: n0 - 10 * D }, { id: 2, created: n0 - 20 * D, resolved: n0 - 10 * D }], null, n0);
+  assert.equal(ev.workInProgress.items[0].id, 100); assert.match(ev.workInProgress.items[0].note, /no update for 90 days/); // parked work: the quietest first
+  assert.match(ev.flow.title, /Oldest open work/); // and the flow chart then lists the oldest instead
+  assert.equal(ev.leadTime.items[0].id, 1); assert.equal(ev.cumulativeFlow, undefined); // no history: no untouched list
+  assert.equal(ev.workInProgress.items.length, 3);
+  assert.match(ev.workInProgress.title, /Parked longest/);
+  // parked work is spotted: 7 of 12 have been quiet for a month or more
+  const sg = insightSignals({ throughput: { weeks: Array.from({ length: 27 }, (_, i) => ({ week: 'w' + i, count: 30, partial: i === 26 })) }, leadTime: { p50: 10, p85: 30, p95: 40, points: Array.from({ length: 40 }, () => [0, 12]) }, age: { count: 12, items }, flow: { days: Array.from({ length: 182 }, (_, i) => ({ arrived: i, departed: i })), netChange: 0 }, cfd: null, forecast: null, evidence: ev });
+  assert.equal(sg.workInProgress.id, 'parked-work'); assert.match(sg.workInProgress.experiment, /listed below/);
+}
+console.log('evidence ok');
