@@ -57,16 +57,7 @@
   /* Warm the Worker and the browser cache so the live dashboard opens with its data ready. */
   (window.requestIdleCallback || function (f) { setTimeout(f, 1500); })(function () { try { fetch('/api/flow').catch(function () {}); } catch (e) {} });
 
-  /* ---------- results: tick marks + count-up ---------- */
-  var ticks = $('#ticks');
-  if (ticks) {
-    function row(label, n, cls) {
-      var s = '<div class="' + (cls || '') + '"><span>' + label + '</span><svg viewBox="0 0 520 18" preserveAspectRatio="none">';
-      for (var i = 0; i < n; i++) s += '<rect x="' + (n === 1 ? 0 : 4 + i * (512 / (n - 1))) + '" y="3" width="4" height="12" rx="1"/>';
-      return s + '</svg></div>';
-    }
-    ticks.innerHTML = row('Monthly', 12) + row('Fortnightly', 26, 'new');
-  }
+  /* ---------- results: count-up ---------- */
   function fmt(v, dec, sign) {
     var s = dec ? Math.abs(v).toFixed(dec) : String(Math.abs(Math.round(v)));
     if (v < 0) return '−' + s;
