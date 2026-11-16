@@ -1,4 +1,4 @@
-import { insightSignals } from './signals.js';
+import { insightSignals, bottleneck } from './signals.js';
 // Pure flow-metric calculations. No network and no Worker APIs, so they can be tested with plain Node.
 // Inputs are plain objects; nothing about people (assignees, reporters) is ever read or returned.
 
@@ -86,7 +86,7 @@ export function leadTime(resolved, now, weeks = WEEKS) {
 // Open items in progress, aged from when they were raised. Only the numeric id is kept, never a title or a person.
 export function workItemAge(open, now) {
   const items = open
-    .map((o) => ({ id: o.id, status: o.status, age: Math.max(0, Math.round(((now - o.created) / DAY) * 10) / 10) }))
+    .map((o) => ({ id: o.id, status: o.status, age: Math.max(0, Math.round(((now - o.created) / DAY) * 10) / 10), idle: o.updated ? Math.max(0, Math.round((now - o.updated) / DAY)) : null }))
     .sort((a, b) => b.age - a.age);
   const ages = sortedNums(items.map((i) => i.age));
   return { count: items.length, p50: r1(percentile(ages, 0.5)), items };
@@ -289,6 +289,35 @@ export function insightFacts(report, now) {
   };
 }
 
+
+// Specific items to start with, so each finding has somewhere to begin. Only numeric ids, statuses and day counts; no titles, no people.
+export function buildEvidence(report, resolved, history, now) {
+  const out = {};
+  const ages = report.age.items;
+  const take = (arr, f) => arr.slice(0, 3).map(f);
+  const bn = bottleneck(ages);
+  const quiet = ages.filter((i) => i.idle != null && i.idle >= 30).sort((a, b) => b.idle - a.idle);
+  const parked = !bn && quiet.length >= 5 && quiet.length / (ages.length || 1) >= 0.25; // matches the "parked work" finding
+  const oldest = (rows, title) => ({ title, items: take(rows, (i) => ({ id: i.id, note: `${i.status}, open ${Math.round(i.age)} days` + (i.idle != null && i.idle >= 14 ? `, no update for ${i.idle}` : '') })) });
+  const quietRow = (title) => ({ title, items: take(quiet, (i) => ({ id: i.id, note: `${i.status}, no update for ${i.idle} days` })) });
+  if (ages.length) {
+    if (bn) out.workInProgress = oldest(ages.filter((i) => i.status === bn.status), `Oldest items waiting in ${bn.status}`);
+    else if (parked) out.workInProgress = quietRow('Parked longest: move back to the queue or close');
+    else out.workInProgress = oldest(ages, 'Oldest items in progress');
+    if (parked) out.flow = oldest(ages, 'Oldest open work: finish, split or close');
+    else if (quiet.length) out.flow = quietRow('Quietest work in progress: finish, hand back or close');
+  }
+  const first = startOfWeekUTC(now) - WEEKS * 7 * DAY;
+  const slow = (resolved || []).filter((r) => r.id != null && r.resolved >= first && r.resolved <= now && r.resolved >= r.created).map((r) => ({ id: r.id, d: Math.round((r.resolved - r.created) / DAY) })).sort((a, b) => b.d - a.d);
+  if (slow.length) out.leadTime = { title: 'Slowest recent finishes: worth a short retrospective', items: take(slow, (r) => ({ id: r.id, note: `took ${r.d} days from raised to resolved` })) };
+  if (history && history.items) {
+    const start = startOfDayUTC(now) - (WEEKS * 7 - 1) * DAY;
+    const todo = history.items.filter((it) => it.id != null && it.created >= start && it.created <= now && stateAt(it, now, history.categories) === 'todo').sort((a, b) => a.created - b.created);
+    if (todo.length) out.cumulativeFlow = { title: 'Oldest items raised and never started: decide on each', items: take(todo, (it) => ({ id: it.id, note: `raised ${Math.round((now - it.created) / DAY)} days ago, not started` })) };
+  }
+  return out;
+}
+
 export function buildReport({ resolved, arrivals, open, totals, history }, now) {
   const tp = throughput(resolved, now);
   const labels = tp.weeks.map((w) => w.week);
@@ -302,6 +331,7 @@ export function buildReport({ resolved, arrivals, open, totals, history }, now) 
     forecast: forecast(tp.weeks.filter((w) => !w.partial).map((w) => w.count), labels, now),
     cfd: null,
     wip: null,
+    evidence: {},
   };
   // Status history is optional: without enough of it the page falls back to the snapshot views.
   if (history && history.items && history.items.length >= 20) {
@@ -309,6 +339,7 @@ export function buildReport({ resolved, arrivals, open, totals, history }, now) 
     report.wip = wipTrend(history.items, now, history.categories);
     if (!report.cfd.raised) report.cfd = null;
   }
+  report.evidence = buildEvidence(report, resolved, history, now);
   report.facts = insightFacts(report, now);
   return report;
 }

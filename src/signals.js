@@ -6,6 +6,14 @@ const r1 = (x) => (x == null || !isFinite(x) ? null : Math.round(x * 10) / 10);
 const r0 = (x) => (x == null || !isFinite(x) ? null : Math.round(x));
 const avg = (a) => (a.length ? a.reduce((s, v) => s + v, 0) / a.length : 0);
 
+// The waiting status (not the plain working one) that holds the largest share of work in progress, if any holds a lot.
+export function bottleneck(ages) {
+  const n = ages.length, by = {};
+  for (const i of ages) if (!/^in progress$/i.test(i.status)) by[i.status] = (by[i.status] || 0) + 1;
+  const [status, count] = Object.entries(by).sort((a, b) => b[1] - a[1])[0] || [null, 0];
+  return n >= 5 && count >= 5 && (count / n) * 100 >= 40 ? { status, count, share: r0((count / n) * 100) } : null;
+}
+
 export function insightSignals(report) {
   const s = {};
   const full = report.throughput.weeks.filter((w) => !w.partial).map((w) => w.count);
@@ -35,13 +43,13 @@ export function insightSignals(report) {
   // Work in progress: stuck in one status, too much started at once, or ageing.
   if (report.age.count >= 5 && last4 > 0) {
     const n = report.age.count, weeksOfWork = r1(n / last4), cap = Math.max(1, r0(last4 * 1.5));
-    const by = {}; for (const i of ages) if (!/^in progress$/i.test(i.status)) by[i.status] = (by[i.status] || 0) + 1; // the plain working status is where work is meant to be
-    const [topStatus, topN] = Object.entries(by).sort((a, b) => b[1] - a[1])[0] || [null, 0];
-    const topShare = r0((topN / n) * 100);
+    const bn = bottleneck(ages), topStatus = bn && bn.status, topN = bn ? bn.count : 0, topShare = bn ? bn.share : 0;
+    const quiet = ages.filter((i) => i.idle != null && i.idle >= 30).length, quietShare = r0((quiet / n) * 100);
     const over = ages.filter((i) => lt.p85 != null && i.age > lt.p85).length, overShare = r0((over / n) * 100);
     const totalAge = ages.reduce((a, i) => a + i.age, 0), tenth = Math.max(1, Math.ceil(n / 10));
     const oldestShare = totalAge ? r0((ages.slice(0, tenth).reduce((a, i) => a + i.age, 0) / totalAge) * 100) : 0;
-    if (topShare >= 40 && topN >= 5) s.workInProgress = { id: 'stuck-in-status', insight: `${topShare}% of work in progress (${topN} of ${n} items) sits in one waiting status, "${topStatus}". Work is queueing there, not flowing through it.`, experiment: `Set a pull rule for that stage: nothing new enters it until an item leaves. Review what ${topStatus} is waiting on and check the count after two weeks.` };
+    if (bn) s.workInProgress = { id: 'stuck-in-status', insight: `${topShare}% of work in progress (${topN} of ${n} items) sits in one waiting status, "${topStatus}". Work is queueing there, not flowing through it.`, experiment: `Set a pull rule for that stage: nothing new enters it until an item leaves. Review what ${topStatus} is waiting on and check the count after two weeks.` };
+    else if (quiet >= 5 && quietShare >= 25) s.workInProgress = { id: 'parked-work', insight: `${quiet} of ${n} items in progress (${quietShare}%) have had no update for 30 days or more. They are parked, not in progress, and they inflate both work in progress and lead time.`, experiment: `Move each parked item back to the queue or close it, then re-measure work in progress and median lead time after two weeks.` };
     else if (weeksOfWork >= 2.5) s.workInProgress = { id: 'too-much-started', insight: `${n} items are in progress, which is ${weeksOfWork} weeks of output at the recent rate of ${r1(last4)} a week. Every new item waits behind all of them, so the queue sets lead time.`, experiment: `Cap work in progress at ${cap} for four weeks. Start nothing new above the cap, and compare median lead time at the end.` };
     else s.workInProgress = { id: 'ageing-debt', insight: `The oldest ${tenth} ${tenth === 1 ? 'item holds' : 'items hold'} ${oldestShare}% of all the time work in progress has been open, and ${overShare}% of items are older than the typical ${lt.p85} day finish.`, experiment: `Take the ${tenth} oldest items and decide this week: finish, split or close. Make "oldest first" the standing pull rule.` };
   }
@@ -77,8 +85,12 @@ export function insightSignals(report) {
     else s.forecast = { id: 'reliable', insight: `Past forecasts held at their 85% level ${h} times in ${j}. The ${c50} item median would be missed about half the time, and ${c85} is the number that has actually been safe.`, experiment: `Commit to ${c85} items for the next four weeks and treat anything above as upside. Re-forecast every Monday.` };
   }
 
+  // Where the page lists specific items under a chart, the experiment starts there.
+  const ev = report.evidence || {};
+  for (const k of Object.keys(s)) if (ev[k] && ev[k].items && ev[k].items.length && s[k].experiment) s[k].experiment += ' Start with the items listed below.';
+
   // The headline: the most pressing finding, in priority order, plus the two next actions.
-  const order = [['flow', 'gap-widening'], ['cumulativeFlow', 'untouched-queue'], ['workInProgress', 'too-much-started'], ['workInProgress', 'stuck-in-status'], ['forecast', 'overconfident'], ['leadTime', 'two-populations'], ['leadTime', 'long-tail'], ['throughput', 'lumpy-output'], ['cumulativeFlow', 'intake-outpaces'], ['flow', 'gap-steady'], ['workInProgress', 'ageing-debt']];
+  const order = [['flow', 'gap-widening'], ['cumulativeFlow', 'untouched-queue'], ['workInProgress', 'parked-work'], ['workInProgress', 'too-much-started'], ['workInProgress', 'stuck-in-status'], ['forecast', 'overconfident'], ['leadTime', 'two-populations'], ['leadTime', 'long-tail'], ['throughput', 'lumpy-output'], ['cumulativeFlow', 'intake-outpaces'], ['flow', 'gap-steady'], ['workInProgress', 'ageing-debt']];
   const ranked = order.map(([k, id]) => s[k] && s[k].id === id ? { chart: k, ...s[k] } : null).filter(Boolean);
   const pick = ranked[0] || Object.entries(s).map(([k, v]) => ({ chart: k, ...v }))[0];
   if (pick) {

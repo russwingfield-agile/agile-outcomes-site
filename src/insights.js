@@ -3,6 +3,7 @@
 // it must be well-formed, must not name the data source, and every number in it must come from the supplied facts.
 
 export const DEFAULT_MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast'; // a bigger model for sharper reasoning; set INSIGHT_MODEL to override
+export const INSIGHT_VERSION = 2;
 export const KEYS = ['overall', 'throughput', 'leadTime', 'workInProgress', 'flow', 'forecast', 'summary'];
 // With status history there is one more entry, for the cumulative flow chart.
 export const HISTORY_KEYS = ['overall', 'throughput', 'leadTime', 'workInProgress', 'cumulativeFlow', 'flow', 'forecast', 'summary'];
@@ -84,4 +85,16 @@ export async function generateInsights(env, facts) {
     feedback = 'Your previous reply was rejected: ' + v.problems.join('; ') + '. Write it again using only the supplied figures, keeping each entry short.';
   }
   return null;
+}
+
+// The findings from signals.js as ready-to-show commentary, used whenever the model has produced nothing usable.
+export function signalTexts(facts) {
+  const sg = facts && facts.signals;
+  if (!sg) return null;
+  const out = {};
+  for (const k of keysFor(facts)) {
+    if (k === 'summary') { if (sg.nextActions && sg.nextActions.length) out.summary = sg.nextActions.join(' '); }
+    else if (sg[k]) out[k] = sg[k].insight + ' ' + sg[k].experiment;
+  }
+  return Object.keys(out).length ? out : null;
 }

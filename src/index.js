@@ -1,5 +1,5 @@
 import { buildReport } from './metrics.js';
-import { generateInsights } from './insights.js';
+import { generateInsights, signalTexts, INSIGHT_VERSION } from './insights.js';
 
 const JIRA = 'https://jira.atlassian.com';
 const PROJECT = 'JRACLOUD';
@@ -51,7 +51,7 @@ async function history(p) {
       for (const it of h.items || []) if (it.field === 'status') changes.push({ t: ms(h.created), from: it.fromString, to: it.toString });
     }
     changes.sort((a, b) => a.t - b.t);
-    items.push({ created: ms(i.fields.created), resolved: i.fields.resolutiondate ? ms(i.fields.resolutiondate) : null, current: i.fields.status && i.fields.status.name, changes });
+    items.push({ id: idOf(i.key), created: ms(i.fields.created), resolved: i.fields.resolutiondate ? ms(i.fields.resolutiondate) : null, current: i.fields.status && i.fields.status.name, changes });
   }
   // The tracker's own grouping of each status into not started, in progress or done.
   let categories = null;
@@ -64,6 +64,7 @@ async function history(p) {
 }
 const count = async (jql) => (await jira({ jql, maxResults: '0' })).total;
 const ms = (s) => Date.parse(s);
+const idOf = (key) => Number(String(key).split('-').pop()); // only the number is kept: never a title or a person
 
 async function compute() {
   const now = Date.now();
@@ -71,15 +72,15 @@ async function compute() {
   const [resolvedRaw, createdRaw, openRaw, open, resolved365, hist] = await Promise.all([
     all(p + ' AND resolutiondate >= -196d', 'created,resolutiondate'),
     all(p + ' AND created >= -196d', 'created'),
-    all(p + ' AND statusCategory = "In Progress"', 'created,status', 400),
+    all(p + ' AND statusCategory = "In Progress"', 'created,status,updated', 400),
     count(p + ' AND resolution is EMPTY'),
     count(p + ' AND resolutiondate >= -365d'),
     history(p).catch(() => null), // optional: without it the page shows the snapshot views
   ]);
   return buildReport({
-    resolved: resolvedRaw.map((i) => ({ created: ms(i.fields.created), resolved: ms(i.fields.resolutiondate) })).filter((r) => r.resolved),
+    resolved: resolvedRaw.map((i) => ({ id: idOf(i.key), created: ms(i.fields.created), resolved: ms(i.fields.resolutiondate) })).filter((r) => r.resolved),
     arrivals: createdRaw.map((i) => ms(i.fields.created)),
-    open: openRaw.map((i) => ({ id: Number(String(i.key).split('-').pop()), status: i.fields.status.name, created: ms(i.fields.created) })),
+    open: openRaw.map((i) => ({ id: idOf(i.key), status: i.fields.status.name, created: ms(i.fields.created), updated: i.fields.updated ? ms(i.fields.updated) : null })),
     totals: { open, resolvedLast365: resolved365 },
     history: hist,
   }, now);
@@ -113,13 +114,14 @@ async function getData(request) {
 // Commentary is produced here, when the numbers change, never per visitor and never from the browser.
 async function getInsights(request, env, ctx, data) {
   if (!mem.ins) mem.ins = await readCache(request, 'insights');
+  if (mem.ins && mem.ins.v !== INSIGHT_VERSION) mem.ins = null; // commentary written by an older prompt is not shown
   const stale = !mem.ins || Date.now() - Date.parse(mem.ins.generatedAt) > INSIGHT_TTL * 1000;
   if (stale && env.AI && !mem.busy) {
     mem.busy = true;
     ctx.waitUntil((async () => {
       try {
         const r = await generateInsights(env, data.facts);
-        if (r) { mem.ins = { ...r, generatedAt: new Date().toISOString() }; await writeCache(request, 'insights', mem.ins, INSIGHT_KEEP); }
+        if (r) { mem.ins = { ...r, v: INSIGHT_VERSION, generatedAt: new Date().toISOString() }; await writeCache(request, 'insights', mem.ins, INSIGHT_KEEP); }
       } finally { mem.busy = false; }
     })());
   }
@@ -132,7 +134,9 @@ async function flow(request, env, ctx) {
   try {
     const data = await getData(request);
     const ins = await getInsights(request, env, ctx, data);
-    const body = { ...data, insights: ins ? { ...ins.text, generatedAt: ins.generatedAt } : null };
+    // If the model has not produced commentary (yet, or at all), the findings worked out from the figures are shown instead.
+    const fallback = signalTexts(data.facts);
+    const body = { ...data, insights: ins ? { ...ins.text, generatedAt: ins.generatedAt } : fallback ? { ...fallback, generatedAt: data.generatedAt } : null };
     return new Response(JSON.stringify(body), { headers: { ...JSON_HEADERS, 'Cache-Control': 'public, max-age=120' } });
   } catch (e) {
     return new Response(JSON.stringify({ error: 'unavailable' }), { status: 502, headers: { ...JSON_HEADERS, 'Cache-Control': 'no-store' } });

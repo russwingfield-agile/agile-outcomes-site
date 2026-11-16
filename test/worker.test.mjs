@@ -53,7 +53,8 @@ const env = { ASSETS: { fetch: async () => new Response('asset') }, AI: { run: a
 let res = await mod.fetch(req(), env, ctx);
 let body = await res.json();
 assert.equal(res.status, 200);
-assert.equal(body.insights, null, 'first visit: numbers straight away, commentary follows');
+assert.ok(body.insights && body.insights.overall, 'first visit: the findings from the figures are shown straight away');
+const firstOverall = body.insights.overall;
 assert.ok(body.throughput && body.leadTime.weekly && body.forecast.history && body.facts);
 assert.ok(body.cfd && body.cfd.days.length === 182 && body.wip && body.wip.weeks.length === 26, 'status history charts are present');
 assert.ok(body.facts.cumulativeFlow && body.facts.workInProgress.overTime, 'and their facts');
@@ -62,6 +63,9 @@ const callsAfterFirst = jiraCalls;
 res = await mod.fetch(req(), env, ctx); body = await res.json();
 assert.ok(body.insights && body.insights.overall && body.insights.generatedAt, 'second visit carries the commentary');
 assert.ok(body.insights.cumulativeFlow, 'including the cumulative flow entry');
+assert.notEqual(body.insights.overall, firstOverall, 'the model commentary replaces the findings once it exists');
+assert.ok(body.evidence && body.evidence.workInProgress && body.evidence.workInProgress.items.length === 3 && body.evidence.workInProgress.items.every((i) => Number.isInteger(i.id) && i.note), 'three example items to start with');
+assert.ok(body.evidence.leadTime.items.length === 3 && body.evidence.cumulativeFlow.items.length === 3);
 assert.equal(jiraCalls, callsAfterFirst, 'numbers served from cache, no new Jira calls');
 assert.match(res.headers.get('Cache-Control'), /max-age=120/);
 assert.ok(!JSON.stringify(body).match(/assignee|reporter|displayName|JRACLOUD|atlassian|jira/i), 'payload names no person or source');
@@ -78,11 +82,11 @@ const modS = (await import('../src/index.js?nostatus')).default;
 res = await modS.fetch(req(), env, ctx); body = await res.json();
 assert.equal(res.status, 200); assert.ok(body.cfd, 'falls back to status names'); globalThis.noStatus = false;
 
-// no AI binding: charts still work, commentary is null
+// no AI binding: charts still work, and the findings stand in for the commentary
 store.clear();
 const mod2 = (await import('../src/index.js?noai')).default;
 res = await mod2.fetch(req(), { ASSETS: env.ASSETS }, ctx); body = await res.json();
-assert.equal(res.status, 200); assert.equal(body.insights, null);
+assert.equal(res.status, 200); assert.ok(body.insights && body.insights.overall && body.insights.summary);
 // other paths go to the static assets
 assert.equal(await (await mod.fetch(new Request('https://example.test/'), env, ctx)).text(), 'asset');
 console.log('ok');
