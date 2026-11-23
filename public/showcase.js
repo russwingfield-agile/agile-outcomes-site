@@ -8,6 +8,8 @@
   var DAY = 86400000;
   var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   var data = null, drawn = false;
+  var SOURCES = { product: { title: 'Cloud platform delivery', blurb: 'Public bugs and suggestions for a large cloud product, with a heavy triage stage.', tracker: 'https://jira.atlassian.com/browse/JRACLOUD-' }, engine: { title: 'Database engine delivery', blurb: 'The engineering workflow of a database engine, from triage through code review, merge and verification.', tracker: 'https://jira.mongodb.org/browse/SERVER-' } };
+  var current = (location.hash === '#engine') ? 'engine' : 'product';
 
   /* ---------- helpers ---------- */
   function el(name, attrs, parent) {
@@ -318,7 +320,6 @@
     set('sc-period', 'Last ' + f.period.weeks + ' weeks, ' + dmy(f.period.from) + ' to ' + dmyFull(f.period.to));
   }
   /* ---------- items to start with, listed under the finding they belong to ---------- */
-  var TRACKER = 'https://jira.atlassian.com/browse/JRACLOUD-';
   function evidence(d, map) {
     var ev = d.evidence || {};
     Object.keys(map).forEach(function (k) {
@@ -332,14 +333,14 @@
       var ol = document.createElement('ol'); ol.className = 'evi-l';
       e.items.forEach(function (it) {
         var li = document.createElement('li'), a = document.createElement('a');
-        a.href = TRACKER + it.id; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.textContent = '#' + it.id;
+        a.href = SOURCES[current].tracker + it.id; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.textContent = '#' + it.id;
         var sp = document.createElement('span'); sp.textContent = it.note;
         li.appendChild(a); li.appendChild(sp); ol.appendChild(li);
       });
       old.appendChild(ol);
     });
   }
-  var MAP = { overall: 'in-overall', throughput: 'in-tp', leadTime: 'in-lt', workInProgress: 'in-age', cumulativeFlow: 'in-cfd', flow: 'in-flow', forecast: 'in-fc', summary: 'in-summary' };
+  var MAP = { overall: 'in-overall', throughput: 'in-tp', leadTime: 'in-lt', workInProgress: 'in-age', pipeline: 'in-pl', cumulativeFlow: 'in-cfd', flow: 'in-flow', forecast: 'in-fc', summary: 'in-summary' };
   function commentary(d) {
     var ins = d.insights;
     // with status history the work-in-progress commentary belongs to the over-time chart
@@ -356,6 +357,34 @@
     set('sc-gen', ins ? 'Commentary is generated from the figures above and refreshed every few minutes.' : '');
   }
 
+  /* ---------- pipeline: where open work sits, and what finished work passed through ---------- */
+  function bars(hostId, rows, valueText) {
+    var host = document.getElementById(hostId); if (!host) return; host.innerHTML = '';
+    var max = Math.max.apply(null, rows.map(function (r) { return r.v; }).concat([1]));
+    rows.forEach(function (r) {
+      var row = document.createElement('div'); row.className = 'pl-row';
+      var lab = document.createElement('span'); lab.className = 'pl-l'; lab.textContent = r.label;
+      var track = document.createElement('span'); track.className = 'pl-t';
+      var bar = document.createElement('i'); bar.style.width = Math.max(1.5, (r.v / max) * 100) + '%'; track.appendChild(bar);
+      var val = document.createElement('span'); val.className = 'pl-v'; val.textContent = valueText(r);
+      row.appendChild(lab); row.appendChild(track); row.appendChild(val); host.appendChild(row);
+    });
+  }
+  function drawPipeline(d) {
+    var card = document.getElementById('pl-card'); if (!card) return;
+    var p = d.pipeline; card.hidden = !p; if (!p) return;
+    bars('pl-open', p.stages.map(function (s) { return { label: s.name, v: s.count, pct: s.percent }; }), function (r) { return num(r.v) + ' · ' + r.pct.toFixed(0) + '%'; });
+    bars('pl-pass', p.passedThrough.map(function (s) { return { label: s.label, v: s.percent, n: s.count }; }), function (r) { return r.v.toFixed(0) + '% (' + num(r.n) + ')'; });
+  }
+  function useSource(id) {
+    current = id; data = null; drawn = false;
+    document.querySelectorAll('.subtab').forEach(function (b) { b.setAttribute('aria-selected', b.getAttribute('data-source') === id ? 'true' : 'false'); });
+    document.querySelectorAll('.src[data-src]').forEach(function (n) { n.hidden = n.getAttribute('data-src') !== id; });
+    set('dash-h', SOURCES[id].title); set('sc-blurb', SOURCES[id].blurb);
+    try { history.replaceState(null, '', id === 'product' ? location.pathname : '#' + id); } catch (e) { /* not essential */ }
+  }
+  document.querySelectorAll('.subtab').forEach(function (b) { b.addEventListener('click', function () { var id = b.getAttribute('data-source'); if (id === current) return; useSource(id); load(); }); });
+
   /* ---------- load, draw, redraw ---------- */
   function state(name) { sec.setAttribute('data-state', name); }
   function hasHistory(d) { return !!(d.cfd && d.wip && d.facts && d.facts.cumulativeFlow && d.facts.workInProgress.overTime); }
@@ -366,6 +395,7 @@
     ['cfd-card', 'wip-card'].forEach(function (id) { var c = document.getElementById(id); if (c) c.hidden = !hist; });
     var old = document.getElementById('age-card'); if (old) old.hidden = hist;
     (hist ? [drawThroughput, drawLead, drawCFD, drawWip, drawFlow, drawForecast] : [drawThroughput, drawLead, drawAge, drawFlow, drawForecast]).forEach(function (f) { try { f(data); } catch (e) { if (window.console) console.error(f.name, e); } });
+    try { drawPipeline(data); } catch (e) { if (window.console) console.error('drawPipeline', e); }
     drawn = true;
   }
   function show(j) {
@@ -382,11 +412,13 @@
     }, 9000);
   }
   function fetchFlow(fresh) {
-    return fetch('/api/flow', { headers: { Accept: 'application/json' }, cache: fresh ? 'reload' : 'default' }).then(function (r) { if (!r.ok) throw new Error('status ' + r.status); return r.json(); });
+    return fetch(current === 'product' ? '/api/flow' : '/api/flow?p=' + current, { headers: { Accept: 'application/json' }, cache: fresh ? 'reload' : 'default' }).then(function (r) { if (!r.ok) throw new Error('status ' + r.status); return r.json(); });
   }
-  function load() { state('loading'); fetchFlow(false).then(show).catch(function () { state('error'); }); }
+  function load() { var want = current; state('loading'); fetchFlow(false).then(function (j) { if (want === current) show(j); }).catch(function () { if (want === current) state('error'); }); }
   var retry = document.getElementById('sc-retry'); if (retry) retry.addEventListener('click', load);
   var rt; window.addEventListener('resize', function () { clearTimeout(rt); rt = setTimeout(function () { if (drawn) draw(); }, 150); });
+
+  if (current !== 'product') useSource(current);
 
   // The home page has already warmed the data, so this is usually instant.
   if (document.readyState === 'complete') load(); else window.addEventListener('load', load);

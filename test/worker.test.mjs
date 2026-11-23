@@ -82,6 +82,23 @@ const modS = (await import('../src/index.js?nostatus')).default;
 res = await modS.fetch(req(), env, ctx); body = await res.json();
 assert.equal(res.status, 200); assert.ok(body.cfd, 'falls back to status names'); globalThis.noStatus = false;
 
+// a second source: its own host, its own caches, a pipeline view, no status-history charts
+{
+  const hosts = new Set(); const orig = globalThis.fetch;
+  globalThis.fetch = async (u, o) => { hosts.add(new URL(u).host); return orig(u, o); };
+  res = await mod.fetch(new Request('https://example.test/api/flow?p=engine'), env, ctx); body = await res.json();
+  assert.equal(res.status, 200);
+  assert.ok(hosts.has('jira.mongodb.org') && !hosts.has('example.invalid'), 'second source is queried at its own host');
+  assert.ok(body.pipeline && body.pipeline.stages.length === 10 && body.pipeline.passedThrough.length === 3, 'pipeline view');
+  assert.equal(body.cfd, null, 'no status-history charts for it');
+  assert.ok(body.facts.pipeline && body.facts.signals.pipeline, 'pipeline facts and finding');
+  assert.ok(body.insights && body.insights.pipeline, 'pipeline commentary entry');
+  globalThis.fetch = orig;
+  res = await mod.fetch(new Request('https://example.test/api/flow?p=../../etc'), env, ctx); body = await res.json();
+  assert.ok(res.status === 200 && body.pipeline === null && body.cfd, 'an unknown source falls back to the default');
+  await Promise.all(waits);
+}
+
 // no AI binding: charts still work, and the findings stand in for the commentary
 store.clear();
 const mod2 = (await import('../src/index.js?noai')).default;

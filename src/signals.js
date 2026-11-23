@@ -89,8 +89,19 @@ export function insightSignals(report) {
   const ev = report.evidence || {};
   for (const k of Object.keys(s)) if (ev[k] && ev[k].items && ev[k].items.length && s[k].experiment) s[k].experiment += ' Start with the items listed below.';
 
+  // Pipeline: where open work queues, and whether the recorded workflow matches how work really moves.
+  if (report.pipeline) {
+    const p = report.pipeline, by = (l) => (p.passedThrough.find((x) => x.label === l) || {}).percent;
+    const worked = r0(by('Worked on')), reviewed = r0(by('Code reviewed')), blocked = r1(by('Blocked at any point'));
+    const top = p.stages.slice().sort((a, b) => b.count - a.count)[0], topShare = r0(top.percent);
+    if (reviewed != null && worked != null && reviewed >= worked + 10) s.pipeline = { id: 'status-skipping', insight: `${reviewed}% of resolved items passed through code review, but only ${worked}% were ever marked in progress. Work is happening before the tracker shows it, so lead time and work in progress both read low.`, experiment: `Mark an item in progress when the first branch or draft exists, not when review starts. Compare the share marked in progress after four weeks.` };
+    else if (!/progress|review/i.test(top.name) && topShare >= 35) s.pipeline = { id: 'waiting-queue', insight: `${topShare}% of open work in the tracked stages (${top.count} items) sits in "${top.name}", a waiting stage. It is the biggest queue in the pipeline.`, experiment: `Set a weekly rule for "${top.name}": every item gets moved on, split or closed within two weeks. Compare the size of that queue after a month.` };
+    else if (blocked != null && blocked >= 3) s.pipeline = { id: 'blocked-work', insight: `${blocked}% of resolved items were blocked at some point. Each block is a hand-off waiting on someone else.`, experiment: `List the reasons for the last ten blocks, group them, and fix the most common one at its source. Target half as many in the next quarter.` };
+    else s.pipeline = { id: 'flowing', insight: `${reviewed != null ? reviewed : worked}% of resolved items moved through the full pipeline and no single stage dominates the queue.`, experiment: `Hold the pipeline steady and tighten the slowest stage by one day, then re-measure lead time.` };
+  }
+
   // The headline: the most pressing finding, in priority order, plus the two next actions.
-  const order = [['flow', 'gap-widening'], ['cumulativeFlow', 'untouched-queue'], ['workInProgress', 'parked-work'], ['workInProgress', 'too-much-started'], ['workInProgress', 'stuck-in-status'], ['forecast', 'overconfident'], ['leadTime', 'two-populations'], ['leadTime', 'long-tail'], ['throughput', 'lumpy-output'], ['cumulativeFlow', 'intake-outpaces'], ['flow', 'gap-steady'], ['workInProgress', 'ageing-debt']];
+  const order = [['flow', 'gap-widening'], ['cumulativeFlow', 'untouched-queue'], ['workInProgress', 'parked-work'], ['pipeline', 'status-skipping'], ['pipeline', 'waiting-queue'], ['workInProgress', 'too-much-started'], ['workInProgress', 'stuck-in-status'], ['forecast', 'overconfident'], ['leadTime', 'two-populations'], ['leadTime', 'long-tail'], ['throughput', 'lumpy-output'], ['cumulativeFlow', 'intake-outpaces'], ['flow', 'gap-steady'], ['workInProgress', 'ageing-debt']];
   const ranked = order.map(([k, id]) => s[k] && s[k].id === id ? { chart: k, ...s[k] } : null).filter(Boolean);
   const pick = ranked[0] || Object.entries(s).map(([k, v]) => ({ chart: k, ...v }))[0];
   if (pick) {

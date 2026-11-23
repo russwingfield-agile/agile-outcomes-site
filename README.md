@@ -12,6 +12,7 @@ Website for Agile Outcomes (agileoutcomes.co.uk).
 A single-column dashboard a CTO could read each morning: an overall insight, headline figures, then five charts over time (throughput, lead time, work in progress by age, flow of work, forecast against delivery). Each chart has labelled axes, gridlines, a legend, tooltips and a short written insight.
 
 - `src/index.js` is a Cloudflare Worker. It serves `/api/flow` and passes everything else to `public/`.
+- `src/sources.js` lists the public trackers the dashboard can show. `/api/flow` serves the default; `/api/flow?p=engine` serves the second one, with its own caches and commentary. The second source has no status-history charts (too many items for the free plan) and gets a pipeline view built from one count query per stage instead.
 - `src/metrics.js` computes the numbers (pure functions, no people data) and the `facts` object that commentary is written from.
 - `src/insights.js` asks Workers AI for the commentary. It sends only `facts`, in a neutral analyst voice, and rejects any reply that is malformed, names the data source, or uses a number that is not in `facts`. It tries twice, then gives up quietly.
 - Caching: the numbers are reused for 10 minutes. Commentary is regenerated in the background when it is older than 10 minutes, so visitors never wait for the model and the browser never calls it. The last good commentary is kept for 7 days as a fallback. If the model is unavailable or the free daily allowance runs out, the charts still show, without commentary.

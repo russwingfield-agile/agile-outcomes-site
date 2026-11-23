@@ -214,6 +214,13 @@ const dirOf = (change, tol = 5) => (change == null ? 'unknown' : change > tol ? 
 const lowerIsBetter = (change, tol = 5) => (change == null ? 'unknown' : change < -tol ? 'improved' : change > tol ? 'worsened' : 'broadly flat');
 
 // The numbers the commentary may draw on. Nothing here identifies a person.
+function pipelineFacts(p) {
+  const top = p.stages.slice().sort((a, b) => b.count - a.count)[0];
+  const by = (label) => (p.passedThrough.find((x) => x.label === label) || {}).percent;
+  return { openItemsInTrackedStages: p.openInStages, largestQueue: { stage: top.name, items: top.count, sharePercent: Math.round(top.percent) }, resolvedLast26Weeks: p.resolved,
+    workedOnPercent: Math.round(by('Worked on')), codeReviewedPercent: Math.round(by('Code reviewed')), blockedAtSomePointPercent: Math.round(by('Blocked at any point')) };
+}
+
 export function insightFacts(report, now) {
   const full = report.throughput.weeks.filter((w) => !w.partial).map((w) => w.count);
   const last4 = avg(full.slice(-4)), prior8 = avg(full.slice(-12, -4));
@@ -279,6 +286,7 @@ export function insightFacts(report, now) {
       last30DaysDirection: arr30 > dep30 ? 'open work grew' : arr30 < dep30 ? 'open work shrank' : 'open work was unchanged',
     },
     ...(cfdFacts ? { cumulativeFlow: cfdFacts } : {}),
+    ...(report.pipeline ? { pipeline: pipelineFacts(report.pipeline) } : {}),
     signals,
     forecastNext4Weeks: f && {
       resolvedAtLeast50Percent: f.outcomes.atLeast50, resolvedAtLeast85Percent: f.outcomes.atLeast85, resolvedAtLeast95Percent: f.outcomes.atLeast95,
@@ -318,7 +326,19 @@ export function buildEvidence(report, resolved, history, now) {
   return out;
 }
 
-export function buildReport({ resolved, arrivals, open, totals, history }, now) {
+// Where open work sits and what finished work passed through, for trackers with a workflow worth showing.
+export function pipelineView(p) {
+  if (!p || !p.stages || !p.resolved) return null;
+  const open = p.stages.reduce((a, s) => a + s.count, 0);
+  return {
+    openInStages: open,
+    stages: p.stages.map((s) => ({ name: s.name, count: s.count, percent: open ? Math.round((s.count / open) * 1000) / 10 : 0 })),
+    resolved: p.resolved,
+    passedThrough: p.passedThrough.map((x) => ({ label: x.label, count: x.count, percent: Math.round((x.count / p.resolved) * 1000) / 10 })),
+  };
+}
+
+export function buildReport({ resolved, arrivals, open, totals, history, pipeline }, now) {
   const tp = throughput(resolved, now);
   const labels = tp.weeks.map((w) => w.week);
   const report = {
@@ -331,6 +351,7 @@ export function buildReport({ resolved, arrivals, open, totals, history }, now) 
     forecast: forecast(tp.weeks.filter((w) => !w.partial).map((w) => w.count), labels, now),
     cfd: null,
     wip: null,
+    pipeline: pipelineView(pipeline),
     evidence: {},
   };
   // Status history is optional: without enough of it the page falls back to the snapshot views.

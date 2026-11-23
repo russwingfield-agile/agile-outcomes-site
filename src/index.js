@@ -1,25 +1,24 @@
 import { buildReport } from './metrics.js';
 import { generateInsights, signalTexts, INSIGHT_VERSION } from './insights.js';
+import { SOURCES, DEFAULT_SOURCE } from './sources.js';
 
-const JIRA = 'https://jira.atlassian.com';
-const PROJECT = 'JRACLOUD';
 const DATA_TTL = 600;            // seconds the computed numbers are reused
 const INSIGHT_TTL = 3600;        // seconds before the commentary is regenerated in the background (hourly keeps the bigger model inside the free daily allowance)
 const INSIGHT_KEEP = 7 * 86400;  // the last good commentary is kept this long, as a fallback
 const UA = 'AgileOutcomes-showcase/1.0 (+https://agileoutcomes.co.uk)';
 
-async function jira(params, path = 'search') {
-  const res = await fetch(JIRA + '/rest/api/2/' + path + (path === 'search' ? '?' + new URLSearchParams(params) : ''), { headers: { Accept: 'application/json', 'User-Agent': UA } });
+async function jira(src, params, path = 'search') {
+  const res = await fetch(src.jira + '/rest/api/2/' + path + (path === 'search' ? '?' + new URLSearchParams(params) : ''), { headers: { Accept: 'application/json', 'User-Agent': UA } });
   if (!res.ok) throw new Error('Jira responded ' + res.status);
   return res.json();
 }
 
 // Page through a query. The page size the server actually allows is read from its reply.
-async function all(jql, fields, cap = 3000) {
+async function all(src, jql, fields, cap = 3000) {
   const out = [];
   let startAt = 0;
   while (out.length < cap) {
-    const j = await jira({ jql, fields, startAt: String(startAt), maxResults: '1000' });
+    const j = await jira(src, { jql, fields, startAt: String(startAt), maxResults: '1000' });
     out.push(...j.issues);
     startAt += j.issues.length;
     if (!j.issues.length || startAt >= j.total) break;
@@ -31,9 +30,9 @@ async function all(jql, fields, cap = 3000) {
 // (so work carried in from before the window is counted). Only status names and dates are kept.
 // Changelog pages are small, so they are fetched in parallel after the first reply says how many there are.
 const HIST_CAP = 2000, HIST_PAGE = 100;
-async function history(p) {
+async function history(src, p) {
   const jql = p + ' AND (created >= -196d OR statusCategory = "In Progress" OR status CHANGED AFTER -196d)';
-  const q = (startAt) => jira({ jql, fields: 'created,resolutiondate,status', expand: 'changelog', startAt: String(startAt), maxResults: String(HIST_PAGE) });
+  const q = (startAt) => jira(src, { jql, fields: 'created,resolutiondate,status', expand: 'changelog', startAt: String(startAt), maxResults: String(HIST_PAGE) });
   const first = await q(0);
   const size = first.issues.length || HIST_PAGE;
   const total = Math.min(first.total || 0, HIST_CAP);
@@ -56,53 +55,67 @@ async function history(p) {
   // The tracker's own grouping of each status into not started, in progress or done.
   let categories = null;
   try {
-    const st = await jira({}, 'status');
+    const st = await jira(src, {}, 'status');
     categories = {};
     for (const x of st) { const k = x.statusCategory && x.statusCategory.key; categories[x.name] = k === 'done' ? 'done' : k === 'indeterminate' ? 'doing' : 'todo'; }
   } catch (e) { /* names are used instead */ }
   return { items, categories };
 }
-const count = async (jql) => (await jira({ jql, maxResults: '0' })).total;
+const count = async (src, jql) => (await jira(src, { jql, maxResults: '0' })).total;
 const ms = (s) => Date.parse(s);
 const idOf = (key) => Number(String(key).split('-').pop()); // only the number is kept: never a title or a person
 
-async function compute() {
+async function compute(src) {
   const now = Date.now();
-  const p = 'project = ' + PROJECT;
+  const p = 'project = ' + src.project;
   const [resolvedRaw, createdRaw, openRaw, open, resolved365, hist] = await Promise.all([
-    all(p + ' AND resolutiondate >= -196d', 'created,resolutiondate'),
-    all(p + ' AND created >= -196d', 'created'),
-    all(p + ' AND statusCategory = "In Progress"', 'created,status,updated', 400),
-    count(p + ' AND resolution is EMPTY'),
-    count(p + ' AND resolutiondate >= -365d'),
-    history(p).catch(() => null), // optional: without it the page shows the snapshot views
+    all(src, p + ' AND resolutiondate >= -196d', 'created,resolutiondate', src.cap),
+    all(src, p + ' AND created >= -196d', 'created', src.cap),
+    all(src, p + ' AND statusCategory = "In Progress"', 'created,status,updated', src.openCap),
+    count(src, p + ' AND resolution is EMPTY'),
+    count(src, p + ' AND resolutiondate >= -365d'),
+    src.history ? history(src, p).catch(() => null) : null, // optional: without it the page shows the snapshot views
   ]);
+  // Where open work sits, and what finished work passed through: one count each, for trackers whose workflow is worth showing.
+  let pipeline = null;
+  if (src.stages) {
+    const [stages, passed, resolved182] = await Promise.all([
+      Promise.all(src.stages.map(async (name) => ({ name, count: await count(src, p + ' AND status = "' + name + '"').catch(() => null) }))),
+      Promise.all(src.passedThrough.map(async ([label, name]) => ({ label, count: await count(src, p + ' AND resolutiondate >= -182d AND status WAS "' + name + '"').catch(() => null) }))),
+      count(src, p + ' AND resolutiondate >= -182d').catch(() => null),
+    ]);
+    if (stages.every((x) => x.count != null) && passed.every((x) => x.count != null) && resolved182) pipeline = { stages, passedThrough: passed, resolved: resolved182 };
+  }
   return buildReport({
     resolved: resolvedRaw.map((i) => ({ id: idOf(i.key), created: ms(i.fields.created), resolved: ms(i.fields.resolutiondate) })).filter((r) => r.resolved),
     arrivals: createdRaw.map((i) => ms(i.fields.created)),
     open: openRaw.map((i) => ({ id: idOf(i.key), status: i.fields.status.name, created: ms(i.fields.created), updated: i.fields.updated ? ms(i.fields.updated) : null })),
     totals: { open, resolvedLast365: resolved365 },
     history: hist,
+    pipeline,
   }, now);
 }
 
 /* ---- two layers of memory: this isolate (fast), and the Cloudflare cache (shared where available) ---- */
-const mem = { data: null, dataAt: 0, ins: null, busy: false };
+const memory = {};
+const memFor = (id) => (memory[id] = memory[id] || { data: null, dataAt: 0, ins: null, busy: false });
+const suffix = (id) => (id === DEFAULT_SOURCE ? '' : '-' + id); // the original source keeps its original cache names
 const cacheUrl = (request, name) => new Request(new URL('/__cache/' + name, request.url).toString());
 async function readCache(request, name) { try { const r = await caches.default.match(cacheUrl(request, name)); return r ? await r.json() : null; } catch (e) { return null; } }
 async function writeCache(request, name, obj, ttl) {
   try { await caches.default.put(cacheUrl(request, name), new Response(JSON.stringify(obj), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=' + ttl } })); } catch (e) { /* no cache available: the memory layer still works */ }
 }
 
-async function getData(request) {
+async function getData(request, id, src) {
+  const mem = memFor(id);
   const fresh = (d, at) => d && Date.now() - at < DATA_TTL * 1000;
   if (fresh(mem.data, mem.dataAt)) return mem.data;
-  const cached = await readCache(request, 'data');
+  const cached = await readCache(request, 'data' + suffix(id));
   if (cached && fresh(cached, Date.parse(cached.generatedAt))) { mem.data = cached; mem.dataAt = Date.parse(cached.generatedAt); return cached; }
   try {
-    const data = await compute();
+    const data = await compute(src);
     mem.data = data; mem.dataAt = Date.now();
-    await writeCache(request, 'data', data, DATA_TTL);
+    await writeCache(request, 'data' + suffix(id), data, DATA_TTL);
     return data;
   } catch (e) {
     if (mem.data) return mem.data; // never fail the page when we have something older
@@ -112,8 +125,9 @@ async function getData(request) {
 }
 
 // Commentary is produced here, when the numbers change, never per visitor and never from the browser.
-async function getInsights(request, env, ctx, data) {
-  if (!mem.ins) mem.ins = await readCache(request, 'insights');
+async function getInsights(request, env, ctx, data, id) {
+  const mem = memFor(id);
+  if (!mem.ins) mem.ins = await readCache(request, 'insights' + suffix(id));
   if (mem.ins && mem.ins.v !== INSIGHT_VERSION) mem.ins = null; // commentary written by an older prompt is not shown
   const stale = !mem.ins || Date.now() - Date.parse(mem.ins.generatedAt) > INSIGHT_TTL * 1000;
   if (stale && env.AI && !mem.busy) {
@@ -121,7 +135,7 @@ async function getInsights(request, env, ctx, data) {
     ctx.waitUntil((async () => {
       try {
         const r = await generateInsights(env, data.facts);
-        if (r) { mem.ins = { ...r, v: INSIGHT_VERSION, generatedAt: new Date().toISOString() }; await writeCache(request, 'insights', mem.ins, INSIGHT_KEEP); }
+        if (r) { mem.ins = { ...r, v: INSIGHT_VERSION, generatedAt: new Date().toISOString() }; await writeCache(request, 'insights' + suffix(id), mem.ins, INSIGHT_KEEP); }
       } finally { mem.busy = false; }
     })());
   }
@@ -132,8 +146,10 @@ const JSON_HEADERS = { 'Content-Type': 'application/json; charset=utf-8' };
 
 async function flow(request, env, ctx) {
   try {
-    const data = await getData(request);
-    const ins = await getInsights(request, env, ctx, data);
+    const asked = new URL(request.url).searchParams.get('p');
+    const id = Object.prototype.hasOwnProperty.call(SOURCES, asked) ? asked : DEFAULT_SOURCE;
+    const data = await getData(request, id, SOURCES[id]);
+    const ins = await getInsights(request, env, ctx, data, id);
     // If the model has not produced commentary (yet, or at all), the findings worked out from the figures are shown instead.
     const fallback = signalTexts(data.facts);
     const body = { ...data, insights: ins ? { ...ins.text, generatedAt: ins.generatedAt } : fallback ? { ...fallback, generatedAt: data.generatedAt } : null };
