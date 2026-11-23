@@ -30,6 +30,7 @@ globalThis.fetch = async (url) => {
     const all = history(250), start = Number(q.get('startAt')), page = 100;
     issues = all.slice(start, start + page); total = all.length;
   }
+  else if (/status (WAS )?IN \(/.test(jql)) { const m = /ON "(\d{4}-\d\d-(\d\d))"/.exec(jql); total = 200 + (m ? Number(m[2]) * 3 : 40); }
   else if (jql.includes('resolutiondate >= -196d')) { issues = mk(900, () => { const r = now - rnd() * 190 * DAY; return { created: D(r - Math.exp(rnd() * 6) * DAY), resolutiondate: D(r) }; }); total = 900; }
   else if (jql.includes('created >= -196d')) { issues = mk(500, () => ({ created: D(now - rnd() * 190 * DAY) })); total = 500; }
   else if (jql.includes('In Progress')) { issues = mk(30, () => ({ created: D(now - rnd() * 300 * DAY), status: { name: 'In Progress' } })); total = 30; }
@@ -90,7 +91,21 @@ assert.equal(res.status, 200); assert.ok(body.cfd, 'falls back to status names')
   assert.equal(res.status, 200);
   assert.ok(hosts.has('jira.mongodb.org') && !hosts.has('example.invalid'), 'second source is queried at its own host');
   assert.ok(body.pipeline && body.pipeline.stages.length === 10 && body.pipeline.passedThrough.length === 3, 'pipeline view');
-  assert.equal(body.cfd, null, 'no status-history charts for it');
+  assert.equal(body.cfd, null, 'no status-history charts until they are asked for');
+  assert.equal(body.historyPending, true, 'and the page is told they are coming');
+  assert.ok(!('cfdBase' in body), 'working data is not sent');
+  assert.ok(hosts.size === 1, 'only the tracker is called for the first reply');
+  const before = jiraCalls;
+  res = await mod.fetch(new Request('https://example.test/api/flow?p=engine&h=1'), env, ctx); const hb = await res.json();
+  assert.ok(jiraCalls - before <= 45, 'the history request stays inside the free subrequest limit: ' + (jiraCalls - before));
+  assert.ok(hb.cfd && hb.cfd.days.length === 182 && hb.cfd.fromCounts, 'cumulative flow built from counts');
+  const last = hb.cfd.days[181];
+  assert.ok(hb.cfd.days.every((d) => d.todo >= 0 && d.doing >= 0 && d.done >= 0) && last.todo + last.doing + last.done === hb.cfd.raised, 'bands add up to everything raised');
+  assert.ok(hb.wip && hb.wip.weeks.length === 26 && hb.wip.ageKnown === false && hb.wip.weeks.every((w) => w.wip > 0), 'work in progress over time');
+  assert.ok(hb.facts.cumulativeFlow && hb.facts.workInProgress.overTime && hb.historyPending === false, 'and their facts');
+  assert.ok(hb.insights && hb.insights.cumulativeFlow, 'commentary covers the new chart');
+  const again = await (await mod.fetch(new Request('https://example.test/api/flow?p=engine'), env, ctx)).json();
+  assert.ok(again.cfd && again.historyPending === false, 'once built, the history comes with every later reply');
   assert.ok(body.facts.pipeline && body.facts.signals.pipeline, 'pipeline facts and finding');
   assert.ok(body.insights && body.insights.pipeline, 'pipeline commentary entry');
   globalThis.fetch = orig;

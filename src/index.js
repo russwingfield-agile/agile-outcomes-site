@@ -1,4 +1,4 @@
-import { buildReport } from './metrics.js';
+import { buildReport, countPlan, applyCounts } from './metrics.js';
 import { generateInsights, signalTexts, INSIGHT_VERSION } from './insights.js';
 import { SOURCES, DEFAULT_SOURCE } from './sources.js';
 
@@ -93,7 +93,44 @@ async function compute(src) {
     totals: { open, resolvedLast365: resolved365 },
     history: hist,
     pipeline,
+    countHistory: !!src.countHistory,
   }, now);
+}
+
+// Trackers too large to read item by item get their status history from counts: how many items were in progress on each of
+// a few dates. About forty small queries, so they run in their own request, are kept for an hour, and are joined to the page data.
+const COUNTS_TTL = 3600;
+async function computeCounts(src) {
+  const now = Date.now();
+  const plan = countPlan(now);
+  const p = 'project = ' + src.project;
+  const names = src.doing.map((n) => '"' + n + '"').join(', ');
+  const on = (d) => (d === plan.today ? 'status IN (' + names + ')' : 'status WAS IN (' + names + ') ON "' + d + '"');
+  const jobs = [
+    ...plan.cohortDays.map((d) => ['cohort', d, p + ' AND created >= "' + plan.start + '" AND ' + on(d)]),
+    ...plan.weeks.map((w) => ['wip', w.date, p + ' AND ' + on(w.date)]),
+  ];
+  const out = await Promise.all(jobs.map(([k, d, jql]) => count(src, jql).then((n) => [k, d, n], () => [k, d, null])));
+  const failed = out.filter((x) => x[2] == null).length;
+  if (failed > 6) throw new Error('too many history queries failed');
+  const counts = { generatedAt: new Date(now).toISOString(), cohort: {}, wip: {} };
+  for (const [k, d, n] of out) if (n != null) counts[k][d] = n;
+  return counts;
+}
+async function getCounts(request, id, src, allowFetch) {
+  const mem = memFor(id);
+  const fresh = (c) => c && Date.now() - Date.parse(c.generatedAt) < COUNTS_TTL * 1000;
+  if (fresh(mem.counts)) return mem.counts;
+  const cached = await readCache(request, 'counts' + suffix(id));
+  if (fresh(cached)) { mem.counts = cached; return cached; }
+  const older = mem.counts || cached || null; // older counts still draw: the dates they cover are matched to the page's own
+  if (!allowFetch) return older;
+  try {
+    if (!mem.countsBusy) {
+      mem.countsBusy = computeCounts(src).then(async (c) => { mem.counts = c; await writeCache(request, 'counts' + suffix(id), c, INSIGHT_KEEP); return c; }).finally(() => { mem.countsBusy = null; });
+    }
+    return await mem.countsBusy;
+  } catch (e) { return older; }
 }
 
 /* ---- two layers of memory: this isolate (fast), and the Cloudflare cache (shared where available) ---- */
@@ -129,7 +166,8 @@ async function getInsights(request, env, ctx, data, id) {
   const mem = memFor(id);
   if (!mem.ins) mem.ins = await readCache(request, 'insights' + suffix(id));
   if (mem.ins && mem.ins.v !== INSIGHT_VERSION) mem.ins = null; // commentary written by an older prompt is not shown
-  const stale = !mem.ins || Date.now() - Date.parse(mem.ins.generatedAt) > INSIGHT_TTL * 1000;
+  const missing = !!(data.facts && data.facts.cumulativeFlow && mem.ins && mem.ins.text && !mem.ins.text.cumulativeFlow); // history arrived after the commentary was written
+  const stale = !mem.ins || missing || Date.now() - Date.parse(mem.ins.generatedAt) > INSIGHT_TTL * 1000;
   if (stale && env.AI && !mem.busy) {
     mem.busy = true;
     ctx.waitUntil((async () => {
@@ -146,14 +184,25 @@ const JSON_HEADERS = { 'Content-Type': 'application/json; charset=utf-8' };
 
 async function flow(request, env, ctx) {
   try {
-    const asked = new URL(request.url).searchParams.get('p');
+    const q = new URL(request.url).searchParams;
+    const asked = q.get('p');
     const id = Object.prototype.hasOwnProperty.call(SOURCES, asked) ? asked : DEFAULT_SOURCE;
-    const data = await getData(request, id, SOURCES[id]);
+    const src = SOURCES[id];
+    let data = await getData(request, id, src);
+    let pending = false;
+    if (src.countHistory) {
+      const wanted = q.get('h') === '1'; // the page asks for the history in a second, separate request
+      const counts = await getCounts(request, id, src, wanted);
+      if (counts) data = applyCounts(data, counts, Date.parse(data.generatedAt));
+      pending = !data.cfd && !wanted;
+    }
     const ins = await getInsights(request, env, ctx, data, id);
     // If the model has not produced commentary (yet, or at all), the findings worked out from the figures are shown instead.
     const fallback = signalTexts(data.facts);
-    const body = { ...data, insights: ins ? { ...ins.text, generatedAt: ins.generatedAt } : fallback ? { ...fallback, generatedAt: data.generatedAt } : null };
-    return new Response(JSON.stringify(body), { headers: { ...JSON_HEADERS, 'Cache-Control': 'public, max-age=120' } });
+    const text = { ...(fallback || {}), ...(ins ? ins.text : {}) };
+    const { cfdBase, ...rest } = data;
+    const body = { ...rest, historyPending: pending, insights: Object.keys(text).length ? { ...text, generatedAt: ins ? ins.generatedAt : data.generatedAt } : null };
+    return new Response(JSON.stringify(body), { headers: { ...JSON_HEADERS, 'Cache-Control': pending ? 'public, max-age=10' : 'public, max-age=120' } });
   } catch (e) {
     return new Response(JSON.stringify({ error: 'unavailable' }), { status: 502, headers: { ...JSON_HEADERS, 'Cache-Control': 'no-store' } });
   }

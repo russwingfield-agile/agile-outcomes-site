@@ -355,3 +355,5 @@ footer{padding-block:36px calc(36px + env(safe-area-inset-bottom,0px));color:var
 .pl-t i{display:block;height:100%;border-radius:999px;background:var(--accent)}
 .pl-v{font:500 .78rem/1 var(--f-mono);color:var(--muted);min-width:5.5em;text-align:right}
 @media (max-width:760px){.pl2{grid-template-columns:1fr}.pl-row{grid-template-columns:minmax(0,130px) 1fr auto}.subtab{padding:11px 14px;font-size:.86rem}}
+
+.hist-note{margin:0 0 12px;padding:10px 14px;border:1px dashed var(--line,#cfd4dc);border-radius:10px;color:var(--muted,#5b6472);font-size:.9rem}

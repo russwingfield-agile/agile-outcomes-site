@@ -231,16 +231,22 @@
     el('circle', { cx: a.x(n - 1), cy: a.y(W[n - 1].wip), r: 3.6, class: 'mk', stroke: 'var(--cf-doing)' }, a.s.svg);
     targets(a, function (w) { return 'Week of ' + dmyFull(w.week) + ': ' + w.wip + ' in progress' + (w.partial ? ' (so far this week)' : ''); });
 
-    var maxA = Math.max.apply(null, W.map(function (w) { return w.p85 || 0; })) * 1.1 || 10;
-    var b = frame('p-wage', maxA, 'Days', num);
-    el('path', { d: path(b, 'p85'), class: 'ln sc', 'stroke-dasharray': '6 4' }, b.s.svg);
-    el('path', { d: path(b, 'p50'), class: 'ln ac' }, b.s.svg);
-    targets(b, function (w) { return 'Week of ' + dmyFull(w.week) + ': ' + (w.p50 == null ? 'too few items to measure' : 'median age ' + days(w.p50) + ', 85th percentile ' + days(w.p85)); });
+    // Ages need each item's history. Where the history came from counts, only the number in progress is shown.
+    var ages = d.wip.ageKnown !== false;
+    document.querySelectorAll('#wip-card [data-age]').forEach(function (n) { n.hidden = !ages; });
+    set('wip-cap', ages ? 'How much is in progress each week, and how long it has been open' : 'How much is in progress each week');
+    if (ages) {
+      var maxA = Math.max.apply(null, W.map(function (w) { return w.p85 || 0; })) * 1.1 || 10;
+      var b = frame('p-wage', maxA, 'Days', num);
+      el('path', { d: path(b, 'p85'), class: 'ln sc', 'stroke-dasharray': '6 4' }, b.s.svg);
+      el('path', { d: path(b, 'p50'), class: 'ln ac' }, b.s.svg);
+      targets(b, function (w) { return 'Week of ' + dmyFull(w.week) + ': ' + (w.p50 == null ? 'too few items to measure' : 'median age ' + days(w.p50) + ', 85th percentile ' + days(w.p85)); });
+    }
 
     var f = d.facts.workInProgress.overTime;
     set('r-wp-now', num(f.itemsNow)); set('r-wp-ago', num(f.itemsFourWeeksAgo)); set('r-wp-age', days(f.medianAgeNowDays)); set('r-wp-agoage', days(f.medianAgeFourWeeksAgoDays));
     aria('p-wip', 'Items in progress each week over 26 weeks, between ' + num(f.lowestItems) + ' and ' + num(f.peakItems) + '. ' + num(f.itemsNow) + ' now, against ' + num(f.itemsFourWeeksAgo) + ' four weeks ago.');
-    aria('p-wage', 'Median and 85th percentile age of items in progress, by week. Median age now ' + days(f.medianAgeNowDays) + ', against ' + days(f.medianAgeFourWeeksAgoDays) + ' four weeks ago.');
+    if (ages) aria('p-wage', 'Median and 85th percentile age of items in progress, by week. Median age now ' + days(f.medianAgeNowDays) + ', against ' + days(f.medianAgeFourWeeksAgoDays) + ' four weeks ago.');
   }
 
   /* ---------- 4. Flow ---------- */
@@ -392,6 +398,7 @@
     if (!data) return;
     // The status-history charts replace the snapshot by age when the history is available; otherwise the snapshot stays.
     var hist = hasHistory(data);
+    var hn = document.getElementById('hist-note'); if (hn) hn.hidden = !data.historyPending;
     ['cfd-card', 'wip-card'].forEach(function (id) { var c = document.getElementById(id); if (c) c.hidden = !hist; });
     var old = document.getElementById('age-card'); if (old) old.hidden = hist;
     (hist ? [drawThroughput, drawLead, drawCFD, drawWip, drawFlow, drawForecast] : [drawThroughput, drawLead, drawAge, drawFlow, drawForecast]).forEach(function (f) { try { f(data); } catch (e) { if (window.console) console.error(f.name, e); } });
@@ -403,6 +410,11 @@
     var when = new Date(j.generatedAt);
     set('sc-updated', 'Updated ' + when.toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }));
     if (!j.insights) poll(0);
+    if (j.historyPending) loadHistory(current);
+  }
+  // Large trackers build their status history in a second request, so the rest of the page is not held up.
+  function loadHistory(src) {
+    fetch('/api/flow?p=' + src + '&h=1', { headers: { Accept: 'application/json' } }).then(function (r) { if (!r.ok) throw new Error('status ' + r.status); return r.json(); }).then(function (k) { if (src === current) { k.historyPending = false; data = k; draw(); commentary(k); } }).catch(function () { if (src === current && data) { data.historyPending = false; draw(); } });
   }
   // The first visit after a quiet spell gets the numbers straight away and the commentary a few seconds later.
   function poll(n) {
