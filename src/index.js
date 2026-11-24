@@ -7,10 +7,20 @@ const INSIGHT_TTL = 3600;        // seconds before the commentary is regenerated
 const INSIGHT_KEEP = 7 * 86400;  // the last good commentary is kept this long, as a fallback
 const UA = 'AgileOutcomes-showcase/1.0 (+https://agileoutcomes.co.uk)';
 
+// Anonymous requests to a public tracker are sometimes refused for a moment (rate limits, busy servers), so those are retried briefly.
 async function jira(src, params, path = 'search') {
-  const res = await fetch(src.jira + '/rest/api/2/' + path + (path === 'search' ? '?' + new URLSearchParams(params) : ''), { headers: { Accept: 'application/json', 'User-Agent': UA } });
-  if (!res.ok) throw new Error('Jira responded ' + res.status);
-  return res.json();
+  const url = src.jira + '/rest/api/2/' + path + (path === 'search' ? '?' + new URLSearchParams(params) : '');
+  let last;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (attempt) await new Promise((r) => setTimeout(r, Math.min(2000, last && last.wait ? last.wait : 400 * attempt)));
+    try {
+      const res = await fetch(url, { headers: { Accept: 'application/json', 'User-Agent': UA } });
+      if (res.ok) return await res.json();
+      last = { error: new Error('Jira responded ' + res.status), wait: (Number(res.headers.get('Retry-After')) || 0) * 1000 };
+      if (![429, 500, 502, 503, 504].includes(res.status)) break;
+    } catch (e) { last = { error: e }; }
+  }
+  throw last.error;
 }
 
 // Page through a query. The page size the server actually allows is read from its reply.
@@ -204,7 +214,7 @@ async function flow(request, env, ctx) {
     const body = { ...rest, historyPending: pending, insights: Object.keys(text).length ? { ...text, generatedAt: ins ? ins.generatedAt : data.generatedAt } : null };
     return new Response(JSON.stringify(body), { headers: { ...JSON_HEADERS, 'Cache-Control': pending ? 'public, max-age=10' : 'public, max-age=120' } });
   } catch (e) {
-    return new Response(JSON.stringify({ error: 'unavailable' }), { status: 502, headers: { ...JSON_HEADERS, 'Cache-Control': 'no-store' } });
+    return new Response(JSON.stringify({ error: 'unavailable', detail: String((e && e.message) || e).slice(0, 200) }), { status: 502, headers: { ...JSON_HEADERS, 'Cache-Control': 'no-store' } });
   }
 }
 
