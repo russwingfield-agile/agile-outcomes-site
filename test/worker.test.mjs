@@ -30,6 +30,7 @@ globalThis.fetch = async (url) => {
     const all = history(250), start = Number(q.get('startAt')), page = 100;
     issues = all.slice(start, start + page); total = all.length;
   }
+  else if (/status (WAS )?IN \(/.test(jql)) { const m = /ON "(\d{4}-\d\d-(\d\d))"/.exec(jql); total = 200 + (m ? Number(m[2]) * 3 : 40); issues = mk(total, () => ({ created: D(now - 5 * DAY - rnd() * 400 * DAY) })); }
   else if (jql.includes('resolutiondate >= -196d')) { issues = mk(900, () => { const r = now - rnd() * 190 * DAY; return { created: D(r - Math.exp(rnd() * 6) * DAY), resolutiondate: D(r) }; }); total = 900; }
   else if (jql.includes('created >= -196d')) { issues = mk(500, () => ({ created: D(now - rnd() * 190 * DAY) })); total = 500; }
   else if (jql.includes('In Progress')) { issues = mk(30, () => ({ created: D(now - rnd() * 300 * DAY), status: { name: 'In Progress' } })); total = 30; }
@@ -81,6 +82,37 @@ store.clear(); globalThis.noStatus = true;
 const modS = (await import('../src/index.js?nostatus')).default;
 res = await modS.fetch(req(), env, ctx); body = await res.json();
 assert.equal(res.status, 200); assert.ok(body.cfd, 'falls back to status names'); globalThis.noStatus = false;
+
+// a second source: its own host, its own caches, a pipeline view, no status-history charts
+{
+  const hosts = new Set(); const orig = globalThis.fetch;
+  globalThis.fetch = async (u, o) => { hosts.add(new URL(u).host); return orig(u, o); };
+  res = await mod.fetch(new Request('https://example.test/api/flow?p=engine'), env, ctx); body = await res.json();
+  assert.equal(res.status, 200);
+  assert.ok(hosts.has('jira.mongodb.org') && !hosts.has('example.invalid'), 'second source is queried at its own host');
+  assert.equal(body.pipeline, null, 'the two tabs show the same charts: no extra pipeline view');
+  assert.equal(body.cfd, null, 'no status-history charts until they are asked for');
+  assert.equal(body.historyPending, true, 'and the page is told they are coming');
+  assert.ok(!('cfdBase' in body), 'working data is not sent');
+  assert.ok(hosts.size === 1, 'only the tracker is called for the first reply');
+  const before = jiraCalls;
+  res = await mod.fetch(new Request('https://example.test/api/flow?p=engine&h=1'), env, ctx); const hb = await res.json();
+  assert.ok(jiraCalls - before <= 45, 'the history request stays inside the free subrequest limit: ' + (jiraCalls - before));
+  assert.ok(hb.cfd && hb.cfd.days.length === 182 && hb.cfd.fromCounts, 'cumulative flow built from counts');
+  const last = hb.cfd.days[181];
+  assert.ok(hb.cfd.days.every((d) => d.todo >= 0 && d.doing >= 0 && d.done >= 0) && last.todo + last.doing + last.done === hb.cfd.raised, 'bands add up to everything raised');
+  assert.ok(hb.wip && hb.wip.weeks.length === 26 && hb.wip.ageKnown === true && hb.wip.weeks.every((w) => w.wip > 0 && w.p50 > 0 && w.p85 >= w.p50), 'work in progress over time, with its age');
+  assert.ok(hb.facts.workInProgress.overTime.medianAgeNowDays > 0, 'age of work in progress is in the facts');
+  assert.ok(hb.facts.cumulativeFlow && hb.facts.workInProgress.overTime && hb.historyPending === false, 'and their facts');
+  assert.ok(hb.insights && hb.insights.cumulativeFlow, 'commentary covers the new chart');
+  assert.ok(hb.evidence.cumulativeFlow && hb.evidence.cumulativeFlow.items.length === 3, 'links to the oldest items waiting to start');
+  const again = await (await mod.fetch(new Request('https://example.test/api/flow?p=engine'), env, ctx)).json();
+  assert.ok(again.cfd && again.historyPending === false, 'once built, the history comes with every later reply');
+  globalThis.fetch = orig;
+  res = await mod.fetch(new Request('https://example.test/api/flow?p=../../etc'), env, ctx); body = await res.json();
+  assert.ok(res.status === 200 && body.pipeline === null && body.cfd, 'an unknown source falls back to the default');
+  await Promise.all(waits);
+}
 
 // no AI binding: charts still work, and the findings stand in for the commentary
 store.clear();

@@ -214,6 +214,13 @@ const dirOf = (change, tol = 5) => (change == null ? 'unknown' : change > tol ? 
 const lowerIsBetter = (change, tol = 5) => (change == null ? 'unknown' : change < -tol ? 'improved' : change > tol ? 'worsened' : 'broadly flat');
 
 // The numbers the commentary may draw on. Nothing here identifies a person.
+function pipelineFacts(p) {
+  const top = p.stages.slice().sort((a, b) => b.count - a.count)[0];
+  const by = (label) => (p.passedThrough.find((x) => x.label === label) || {}).percent;
+  return { openItemsInTrackedStages: p.openInStages, largestQueue: { stage: top.name, items: top.count, sharePercent: Math.round(top.percent) }, resolvedLast26Weeks: p.resolved,
+    workedOnPercent: Math.round(by('Worked on')), codeReviewedPercent: Math.round(by('Code reviewed')), blockedAtSomePointPercent: Math.round(by('Blocked at any point')) };
+}
+
 export function insightFacts(report, now) {
   const full = report.throughput.weeks.filter((w) => !w.partial).map((w) => w.count);
   const last4 = avg(full.slice(-4)), prior8 = avg(full.slice(-12, -4));
@@ -279,6 +286,7 @@ export function insightFacts(report, now) {
       last30DaysDirection: arr30 > dep30 ? 'open work grew' : arr30 < dep30 ? 'open work shrank' : 'open work was unchanged',
     },
     ...(cfdFacts ? { cumulativeFlow: cfdFacts } : {}),
+    ...(report.pipeline ? { pipeline: pipelineFacts(report.pipeline) } : {}),
     signals,
     forecastNext4Weeks: f && {
       resolvedAtLeast50Percent: f.outcomes.atLeast50, resolvedAtLeast85Percent: f.outcomes.atLeast85, resolvedAtLeast95Percent: f.outcomes.atLeast95,
@@ -318,7 +326,95 @@ export function buildEvidence(report, resolved, history, now) {
   return out;
 }
 
-export function buildReport({ resolved, arrivals, open, totals, history }, now) {
+// Where open work sits and what finished work passed through, for trackers with a workflow worth showing.
+export function pipelineView(p) {
+  if (!p || !p.stages || !p.resolved) return null;
+  const open = p.stages.reduce((a, s) => a + s.count, 0);
+  return {
+    openInStages: open,
+    stages: p.stages.map((s) => ({ name: s.name, count: s.count, percent: open ? Math.round((s.count / open) * 1000) / 10 : 0 })),
+    resolved: p.resolved,
+    passedThrough: p.passedThrough.map((x) => ({ label: x.label, count: x.count, percent: Math.round((x.count / p.resolved) * 1000) / 10 })),
+  };
+}
+
+// ---- Status history from counts ----
+// Trackers with a long, busy history cannot be read item by item inside the free limits. For those, the tracker is
+// asked how many items were in progress on a handful of dates, and the rest comes from the dates already fetched.
+// Items raised and finished in the window are exact; items in progress are sampled (fortnightly for the stacked
+// chart, weekly for the work-in-progress chart) and joined with straight lines.
+
+// Cumulative count of items raised in the window, and how many of those have finished, for each day.
+export function cohortBase(arrivals, resolved, now, windowDays = WEEKS * 7) {
+  const today = startOfDayUTC(now), start = today - (windowDays - 1) * DAY;
+  const raised = new Array(windowDays).fill(0), done = new Array(windowDays).fill(0);
+  const at = (t) => Math.min(windowDays - 1, Math.floor((t - start) / DAY));
+  for (const c of arrivals) if (c >= start && c <= now) raised[at(c)]++;
+  for (const r of resolved) if (r.created >= start && r.resolved != null && r.resolved >= r.created && r.resolved <= now) done[at(r.resolved)]++;
+  let a = 0, b = 0;
+  return { days: raised.map((x, i) => { a += x; b += done[i]; return { day: iso(start + i * DAY), raised: a, done: b }; }) };
+}
+
+// The dates the tracker is asked about.
+export function countPlan(now, windowDays = WEEKS * 7, weeks = WEEKS) {
+  const today = startOfDayUTC(now), start = today - (windowDays - 1) * DAY;
+  const cohortDays = [];
+  for (let i = 14; i < windowDays - 1; i += 14) cohortDays.push(iso(start + i * DAY));
+  cohortDays.push(iso(today));
+  const first = startOfWeekUTC(now) - (weeks - 1) * 7 * DAY;
+  const weekList = [];
+  for (let w = 0; w < weeks; w++) {
+    const partial = w === weeks - 1;
+    weekList.push({ week: iso(first + w * 7 * DAY), partial, date: partial ? iso(today) : iso(first + (w + 1) * 7 * DAY - 1) });
+  }
+  return { today: iso(today), start: iso(start), cohortDays, weeks: weekList };
+}
+
+// Median and 85th percentile age, in days at time t, of items raised at the given times. Null when there are too few to say.
+export function ageSummary(createdTimes, t) {
+  const ages = sortedNums(createdTimes.filter((c) => c <= t).map((c) => (t - c) / DAY));
+  return ages.length >= 5 ? { p50: r1(percentile(ages, 0.5)), p85: r1(percentile(ages, 0.85)) } : { p50: null, p85: null };
+}
+
+// counts: { cohort: { 'YYYY-MM-DD': items in progress that were raised in the window }, wip: { 'YYYY-MM-DD': all items in progress } }
+export function applyCounts(report, counts, now) {
+  if (!report || !report.cfdBase || !counts) return report;
+  const days = report.cfdBase.days, n = days.length;
+  const pts = [];
+  days.forEach((d, i) => { const v = counts.cohort && counts.cohort[d.day]; if (typeof v === 'number') pts.push([i, v]); });
+  if (pts.length < 4) return report;
+  if (pts[0][0] !== 0) pts.unshift([0, 0]);
+  const doing = new Array(n);
+  for (let i = 0; i < n; i++) {
+    let k = 0;
+    while (k < pts.length - 1 && pts[k + 1][0] <= i) k++;
+    const [i0, v0] = pts[k], nx = pts[k + 1];
+    doing[i] = nx ? v0 + ((nx[1] - v0) * (i - i0)) / (nx[0] - i0) : v0;
+  }
+  const cfdDays = days.map((d, i) => {
+    const open = Math.max(0, d.raised - d.done), dg = Math.max(0, Math.min(open, Math.round(doing[i])));
+    return { day: d.day, todo: open - dg, doing: dg, done: d.done };
+  });
+  const raised = cfdDays[n - 1].todo + cfdDays[n - 1].doing + cfdDays[n - 1].done;
+  const plan = countPlan(now);
+  let prev = null;
+  // Each week is either a bare count or { n, p50, p85 } when the ages of the items in progress were read as well.
+  const wk = plan.weeks.map((w) => {
+    const v = counts.wip && counts.wip[w.date], n = v && typeof v === 'object' ? v.n : v;
+    if (typeof n === 'number') prev = n;
+    return { week: w.week, partial: w.partial, wip: typeof n === 'number' ? n : prev, p50: v && v.p50 != null ? v.p50 : null, p85: v && v.p85 != null ? v.p85 : null };
+  });
+  const firstKnown = wk.find((w) => w.wip != null);
+  if (!raised || !firstKnown || wk.filter((w) => w.wip != null).length < WEEKS - 4) return report;
+  wk.forEach((w) => { if (w.wip == null) w.wip = firstKnown.wip; });
+  const evidence = { ...report.evidence };
+  if (counts.waiting && counts.waiting.length) evidence.cumulativeFlow = { title: 'Oldest items raised and never started: decide on each', items: counts.waiting.slice(0, 3).map((it) => ({ id: it.id, note: `raised ${Math.round((now - it.created) / DAY)} days ago, not started` })) };
+  const out = { ...report, evidence, cfd: { windowDays: n, raised, days: cfdDays, fromCounts: true }, wip: { weeks: wk, ageKnown: wk.filter((w) => w.p50 != null).length >= WEEKS - 4 } };
+  out.facts = insightFacts(out, now);
+  return out;
+}
+
+export function buildReport({ resolved, arrivals, open, totals, history, pipeline, countHistory }, now) {
   const tp = throughput(resolved, now);
   const labels = tp.weeks.map((w) => w.week);
   const report = {
@@ -331,8 +427,10 @@ export function buildReport({ resolved, arrivals, open, totals, history }, now) 
     forecast: forecast(tp.weeks.filter((w) => !w.partial).map((w) => w.count), labels, now),
     cfd: null,
     wip: null,
+    pipeline: pipelineView(pipeline),
     evidence: {},
   };
+  if (countHistory) report.cfdBase = cohortBase(arrivals, resolved, now);
   // Status history is optional: without enough of it the page falls back to the snapshot views.
   if (history && history.items && history.items.length >= 20) {
     report.cfd = cumulativeFlow(history.items, now, history.categories);

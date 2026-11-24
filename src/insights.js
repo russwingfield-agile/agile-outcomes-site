@@ -7,7 +7,7 @@ export const INSIGHT_VERSION = 2;
 export const KEYS = ['overall', 'throughput', 'leadTime', 'workInProgress', 'flow', 'forecast', 'summary'];
 // With status history there is one more entry, for the cumulative flow chart.
 export const HISTORY_KEYS = ['overall', 'throughput', 'leadTime', 'workInProgress', 'cumulativeFlow', 'flow', 'forecast', 'summary'];
-const keysFor = (facts) => (facts && facts.cumulativeFlow ? HISTORY_KEYS : KEYS);
+const keysFor = (facts) => { const base = facts && facts.cumulativeFlow ? HISTORY_KEYS : KEYS; return facts && facts.pipeline ? base.flatMap((k) => (k === 'workInProgress' ? [k, 'pipeline'] : [k])) : base; };
 const MAX_WORDS = { overall: 70, summary: 50, throughput: 62, leadTime: 62, workInProgress: 62, cumulativeFlow: 62, flow: 62, forecast: 62 };
 
 const SYSTEM = `You write the commentary for a delivery dashboard that a CTO reads each morning and in a weekly meeting. They can already read the charts, so never repeat what a chart plainly shows (a line going up, a number being high). Say what the chart does not show, and what to try.

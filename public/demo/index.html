@@ -36,7 +36,7 @@
       <a href="/#about">About</a>
       <a href="/#cases">Case studies</a>
       <a href="/#engagements">Approach</a>
-      <a href="/demo/" class="nav-live" aria-current="true">Live demo <span class="live-tag">Live</span></a>
+      <a href="/demo/" class="nav-live" aria-current="true">Live Demos <span class="live-tag">Live</span></a>
       <a href="/#contact">Contact</a>
     </nav>
     <div class="bar-actions">
@@ -53,6 +53,14 @@
 
 <section class="dash" id="showcase" aria-labelledby="dash-h" data-state="loading">
   <div class="wrap">
+    <div class="demo-pick">
+      <p class="demo-pick-l" id="pick-l">Choose a live demo</p>
+      <div class="subtabs" role="tablist" aria-labelledby="pick-l">
+        <button type="button" role="tab" class="subtab" id="tab-product" data-source="product" aria-selected="true"><span class="st-n">1</span><span class="st-t">Product feedback<small>Bugs and suggestions</small></span></button>
+        <button type="button" role="tab" class="subtab" id="tab-engine" data-source="engine" aria-selected="false"><span class="st-n">2</span><span class="st-t">Engineering pipeline<small>Triage to release</small></span></button>
+      </div>
+    </div>
+
     <header class="dash-head">
       <div>
         <p class="eyebrow">Delivery dashboard</p>
@@ -60,6 +68,7 @@
       </div>
       <p class="dash-meta"><span class="dot" aria-hidden="true"></span><span id="sc-updated">Loading live data</span><span id="sc-period" class="per"></span></p>
     </header>
+    <p class="subtab-blurb" id="sc-blurb">Public bugs and suggestions for a large cloud product, with a heavy triage stage.</p>
 
     <div class="sc-error" role="alert"><p>The dashboard could not load just now.</p><button type="button" class="btn btn-ghost btn-sm" id="sc-retry">Try again</button></div>
 
@@ -97,21 +106,30 @@
       <div class="insight" id="in-cfd" hidden><p class="in-k">Insight</p><p class="in-t"></p></div>
     </section>
     <section class="chart" id="wip-card" aria-labelledby="wip-t" hidden>
-      <header class="chart-head"><h2 id="wip-t">Work in progress over time</h2><p class="cap">How much is in progress each week, and how long it has been open</p></header>
-      <dl class="reads2"><div><dt>In progress now</dt><dd id="r-wp-now">–</dd></div><div><dt>Four weeks ago</dt><dd id="r-wp-ago">–</dd></div><div><dt>Median age now</dt><dd id="r-wp-age">–</dd></div><div><dt>Median age four weeks ago</dt><dd id="r-wp-agoage">–</dd></div></dl>
+      <header class="chart-head"><h2 id="wip-t">Work in progress over time</h2><p class="cap" id="wip-cap">How much is in progress each week, and how long it has been open</p></header>
+      <dl class="reads2"><div><dt>In progress now</dt><dd id="r-wp-now">–</dd></div><div><dt>Four weeks ago</dt><dd id="r-wp-ago">–</dd></div><div data-age><dt>Median age now</dt><dd id="r-wp-age">–</dd></div><div data-age><dt>Median age four weeks ago</dt><dd id="r-wp-agoage">–</dd></div></dl>
       <p class="sub-t">Items in progress</p>
       <div class="pbody short"><div class="plot2" id="p-wip"></div><div class="skel" aria-hidden="true"></div></div>
-      <p class="sub-t">Age of items in progress, in days</p>
-      <div class="pbody short"><div class="plot2" id="p-wage"></div><div class="skel" aria-hidden="true"></div></div>
-      <ul class="legend" id="lg-wip" aria-hidden="true"><li><i class="lg-wipc"></i>Items in progress</li><li><i class="lg-med"></i>Median age</li><li><i class="lg-p85"></i>85th percentile age</li></ul>
+      <p class="sub-t" data-age>Age of items in progress, in days</p>
+      <div class="pbody short" data-age><div class="plot2" id="p-wage"></div><div class="skel" aria-hidden="true"></div></div>
+      <ul class="legend" id="lg-wip" aria-hidden="true"><li><i class="lg-wipc"></i>Items in progress</li><li data-age><i class="lg-med"></i>Median age</li><li data-age><i class="lg-p85"></i>85th percentile age</li></ul>
       <div class="insight" id="in-wip" hidden><p class="in-k">Insight</p><p class="in-t"></p></div>
     </section>
+    <p class="hist-note" id="hist-note" role="status" hidden>Building the status-history charts from the tracker. This takes a few seconds.</p>
     <section class="chart" id="age-card" aria-labelledby="age-t">
       <header class="chart-head"><h2 id="age-t">Work in progress by age</h2><p class="cap">Items currently in progress, by status and days since raised</p></header>
       <dl class="reads2"><div><dt>In progress</dt><dd id="r-age-n">–</dd></div><div><dt>Within the median lead time</dt><dd id="r-age-a">–</dd></div><div><dt>Median to 85th percentile</dt><dd id="r-age-b">–</dd></div><div><dt>Beyond the 85th percentile</dt><dd id="r-age-c">–</dd></div></dl>
       <div class="pbody"><div class="plot2" id="p-age"></div><div class="skel" aria-hidden="true"></div></div>
       <ul class="legend" id="lg-age" aria-hidden="true"><li><i class="lg-pt"></i>Within the 85th percentile</li><li><i class="lg-late"></i>Beyond the 85th percentile</li><li><i class="lg-p50"></i>Median lead time</li><li><i class="lg-p85"></i>85th percentile lead time</li></ul>
       <div class="insight" id="in-age" hidden><p class="in-k">Insight</p><p class="in-t"></p></div>
+    </section>
+    <section class="chart" id="pl-card" aria-labelledby="pl-t" hidden>
+      <header class="chart-head"><h2 id="pl-t">Pipeline</h2><p class="cap">Where open work sits now, and which stages finished work passed through</p></header>
+      <div class="pl2">
+        <div><h3 class="pl-h">Open work by stage</h3><div class="pl" id="pl-open"></div></div>
+        <div><h3 class="pl-h">Resolved work: stages it passed through</h3><div class="pl" id="pl-pass"></div></div>
+      </div>
+      <div class="insight" id="in-pl" hidden><p class="in-k">Insight</p><p class="in-t"></p></div>
     </section>
     <section class="chart" aria-labelledby="flow-t">
       <header class="chart-head"><h2 id="flow-t">Flow of work</h2><p class="cap">Cumulative items raised and resolved, last 26 weeks</p></header>
@@ -133,7 +151,8 @@
         <p class="gen" id="sc-gen"></p>
       </section>
     </div>
-    <p class="src">Data source: the public Jira Cloud project at <a href="https://jira.atlassian.com/browse/JRACLOUD" target="_blank" rel="noopener">jira.atlassian.com</a> (Atlassian), used here as a worked example. Team-level figures only, and no individuals are shown.</p>
+    <p class="src" data-src="product">Data source: the public Jira Cloud project at <a href="https://jira.atlassian.com/browse/JRACLOUD" target="_blank" rel="noopener">jira.atlassian.com</a> (Atlassian), used here as a worked example. Team-level figures only, and no individuals are shown.</p>
+    <p class="src" data-src="engine" hidden>Data source: the public Jira project of the MongoDB server at <a href="https://jira.mongodb.org/browse/SERVER" target="_blank" rel="noopener">jira.mongodb.org</a> (MongoDB), used here as a second worked example. Team-level figures only, and no individuals are shown.</p>
   </div>
 </section>
 
