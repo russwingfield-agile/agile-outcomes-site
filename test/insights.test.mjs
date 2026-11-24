@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { buildReport } from '../src/metrics.js';
+import { buildReport } from '../public/lib/metrics.js';
 import { generateInsights, validate, KEYS, buildMessages } from '../src/insights.js';
 const DAY = 86400000, now = Date.UTC(2026, 10, 4, 12);
 let s = 3; const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647;

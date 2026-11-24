@@ -58,6 +58,7 @@
       <div class="subtabs" role="tablist" aria-labelledby="pick-l">
         <button type="button" role="tab" class="subtab" id="tab-product" data-source="product" aria-selected="true"><span class="st-n">1</span><span class="st-t">Product feedback<small>Bugs and suggestions</small></span></button>
         <button type="button" role="tab" class="subtab" id="tab-engine" data-source="engine" aria-selected="false"><span class="st-n">2</span><span class="st-t">Engineering pipeline<small>Triage to release</small></span></button>
+        <button type="button" role="tab" class="subtab" id="tab-yours" data-source="yours" aria-selected="false"><span class="st-n">3</span><span class="st-t">Your data<small>Upload a CSV: stays in your browser</small></span></button>
       </div>
     </div>
 
@@ -69,6 +70,49 @@
       <p class="dash-meta"><span class="dot" aria-hidden="true"></span><span id="sc-updated">Loading live data</span><span id="sc-period" class="per"></span></p>
     </header>
     <p class="subtab-blurb" id="sc-blurb">Public bugs and suggestions for a large cloud product, with a heavy triage stage.</p>
+
+    <section class="yd" id="yd" aria-labelledby="yd-h" hidden data-yd="idle">
+      <div class="yd-intro">
+        <h2 id="yd-h">See your own delivery flow</h2>
+        <p>Drop in a CSV export from Jira, Linear or Azure DevOps and get the same charts and findings, on your data. <strong>The file is read in this browser and is never uploaded.</strong> Nothing is sent to a server, saved or shared, and titles, descriptions and people columns are never looked at.</p>
+      </div>
+      <div class="yd-drop" id="yd-drop">
+        <input type="file" id="yd-file" class="yd-input" accept=".csv,text/csv,text/plain">
+        <label for="yd-file" class="btn btn-sm">Choose a CSV file</label>
+        <span class="yd-or" id="yd-or">or drop it here</span>
+        <span class="yd-file" id="yd-name" hidden></span>
+      </div>
+      <p class="yd-msg" id="yd-msg" role="alert" hidden></p>
+      <div class="yd-try">
+        <p class="yd-k">No export to hand? Try an example team</p>
+        <div class="yd-btns">
+          <button type="button" class="btn btn-ghost btn-sm" data-example="jira">Jira-style export</button>
+          <button type="button" class="btn btn-ghost btn-sm" data-example="linear">Linear-style export, with start dates</button>
+        </div>
+        <p class="yd-small">Or download an example to try the upload: <a id="yd-dl-jira" download="example-jira-export.csv" href="#">Jira-style CSV</a> · <a id="yd-dl-linear" download="example-linear-export.csv" href="#">Linear-style CSV</a>. The dates are relative to today.</p>
+      </div>
+      <details class="yd-need yd-intro">
+        <summary>What the file needs</summary>
+        <ul>
+          <li><strong>One row per item</strong>, with a <strong>Created</strong> date, and either a <strong>finished date</strong> (Resolved, Completed or Closed) or a <strong>Status</strong> column. At least 15 items finished in the last 26 weeks.</li>
+          <li><strong>Optional:</strong> a <strong>Started</strong> date (Linear has one, Azure DevOps calls it Activated Date) adds the cumulative flow and work-in-progress-over-time charts. <strong>Updated</strong> adds "no update for N days". <strong>Status category</strong> and <strong>Resolution</strong> are used when they are there.</li>
+          <li><strong>Jira:</strong> search your project, then Export → CSV (all fields). A plain Jira export has no status history, so those two charts are replaced by a snapshot of work in progress by age.</li>
+          <li>Dates are read as written, with no time zone adjustment. "Now" is the latest date in your file, so an older export shows its own last 26 weeks.</li>
+        </ul>
+      </details>
+      <details class="yd-read" id="yd-read" hidden>
+        <summary id="yd-read-s">How the file was read</summary>
+        <div class="yd-read-b">
+          <p class="yd-small" id="yd-counts"></p>
+          <h3 class="yd-h3">Columns</h3>
+          <div class="yd-cols" id="yd-cols"></div>
+          <h3 class="yd-h3">Statuses</h3>
+          <p class="yd-small">Each status is grouped as not started, in progress or done. Change a group if it is wrong. "Left out" drops the items, which suits statuses such as Cancelled or Won't do.</p>
+          <div class="yd-tw"><table class="yd-t"><thead><tr><th scope="col">Status</th><th scope="col" class="num">Items</th><th scope="col">Counted as</th></tr></thead><tbody id="yd-statuses"></tbody></table></div>
+          <ul class="yd-notes" id="yd-notes"></ul>
+        </div>
+      </details>
+    </section>
 
     <div class="sc-error" role="alert"><p>The dashboard could not load just now.</p><button type="button" class="btn btn-ghost btn-sm" id="sc-retry">Try again</button></div>
 
@@ -152,6 +196,7 @@
       </section>
     </div>
     <p class="src" data-src="product">Data source: the public Jira Cloud project at <a href="https://jira.atlassian.com/browse/JRACLOUD" target="_blank" rel="noopener">jira.atlassian.com</a> (Atlassian), used here as a worked example. Team-level figures only, and no individuals are shown.</p>
+    <p class="src" data-src="yours" hidden>Your numbers are worked out in this browser from the file you chose. They are not sent anywhere and are gone when you close or refresh the page.</p>
     <p class="src" data-src="engine" hidden>Data source: the public Jira project of the MongoDB server at <a href="https://jira.mongodb.org/browse/SERVER" target="_blank" rel="noopener">jira.mongodb.org</a> (MongoDB), used here as a second worked example. Team-level figures only, and no individuals are shown.</p>
   </div>
 </section>
@@ -179,5 +224,6 @@
 </footer>
 <script src="/app.js" defer></script>
 <script src="/showcase.js" defer></script>
+<script type="module" src="/yourdata.js"></script>
 </body>
 </html>
