@@ -36,7 +36,7 @@
       <a href="/#about">About</a>
       <a href="/#cases">Case studies</a>
       <a href="/#engagements">Approach</a>
-      <a href="/demo/" class="nav-live" aria-current="true">Live demo <span class="live-tag">Live</span></a>
+      <a href="/demo/" class="nav-live" aria-current="true">Live Demos <span class="live-tag">Live</span></a>
       <a href="/#contact">Contact</a>
     </nav>
     <div class="bar-actions">
@@ -53,6 +53,14 @@
 
 <section class="dash" id="showcase" aria-labelledby="dash-h" data-state="loading">
   <div class="wrap">
+    <div class="demo-pick">
+      <p class="demo-pick-l" id="pick-l">Choose a live demo</p>
+      <div class="subtabs" role="tablist" aria-labelledby="pick-l">
+        <button type="button" role="tab" class="subtab" id="tab-product" data-source="product" aria-selected="true"><span class="st-n">1</span><span class="st-t">Product feedback<small>Bugs and suggestions</small></span></button>
+        <button type="button" role="tab" class="subtab" id="tab-engine" data-source="engine" aria-selected="false"><span class="st-n">2</span><span class="st-t">Engineering pipeline<small>Triage to release</small></span></button>
+      </div>
+    </div>
+
     <header class="dash-head">
       <div>
         <p class="eyebrow">Delivery dashboard</p>
@@ -60,11 +68,6 @@
       </div>
       <p class="dash-meta"><span class="dot" aria-hidden="true"></span><span id="sc-updated">Loading live data</span><span id="sc-period" class="per"></span></p>
     </header>
-
-    <div class="subtabs" role="tablist" aria-label="Choose an example">
-      <button type="button" role="tab" class="subtab" id="tab-product" data-source="product" aria-selected="true">Product feedback</button>
-      <button type="button" role="tab" class="subtab" id="tab-engine" data-source="engine" aria-selected="false">Engineering pipeline</button>
-    </div>
     <p class="subtab-blurb" id="sc-blurb">Public bugs and suggestions for a large cloud product, with a heavy triage stage.</p>
 
     <div class="sc-error" role="alert"><p>The dashboard could not load just now.</p><button type="button" class="btn btn-ghost btn-sm" id="sc-retry">Try again</button></div>
