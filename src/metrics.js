@@ -370,6 +370,12 @@ export function countPlan(now, windowDays = WEEKS * 7, weeks = WEEKS) {
   return { today: iso(today), start: iso(start), cohortDays, weeks: weekList };
 }
 
+// Median and 85th percentile age, in days at time t, of items raised at the given times. Null when there are too few to say.
+export function ageSummary(createdTimes, t) {
+  const ages = sortedNums(createdTimes.filter((c) => c <= t).map((c) => (t - c) / DAY));
+  return ages.length >= 5 ? { p50: r1(percentile(ages, 0.5)), p85: r1(percentile(ages, 0.85)) } : { p50: null, p85: null };
+}
+
 // counts: { cohort: { 'YYYY-MM-DD': items in progress that were raised in the window }, wip: { 'YYYY-MM-DD': all items in progress } }
 export function applyCounts(report, counts, now) {
   if (!report || !report.cfdBase || !counts) return report;
@@ -392,11 +398,16 @@ export function applyCounts(report, counts, now) {
   const raised = cfdDays[n - 1].todo + cfdDays[n - 1].doing + cfdDays[n - 1].done;
   const plan = countPlan(now);
   let prev = null;
-  const wk = plan.weeks.map((w) => { const v = counts.wip && counts.wip[w.date]; if (typeof v === 'number') prev = v; return { week: w.week, partial: w.partial, wip: typeof v === 'number' ? v : prev, p50: null, p85: null }; });
+  // Each week is either a bare count or { n, p50, p85 } when the ages of the items in progress were read as well.
+  const wk = plan.weeks.map((w) => {
+    const v = counts.wip && counts.wip[w.date], n = v && typeof v === 'object' ? v.n : v;
+    if (typeof n === 'number') prev = n;
+    return { week: w.week, partial: w.partial, wip: typeof n === 'number' ? n : prev, p50: v && v.p50 != null ? v.p50 : null, p85: v && v.p85 != null ? v.p85 : null };
+  });
   const firstKnown = wk.find((w) => w.wip != null);
   if (!raised || !firstKnown || wk.filter((w) => w.wip != null).length < WEEKS - 4) return report;
   wk.forEach((w) => { if (w.wip == null) w.wip = firstKnown.wip; });
-  const out = { ...report, cfd: { windowDays: n, raised, days: cfdDays, fromCounts: true }, wip: { weeks: wk, ageKnown: false } };
+  const out = { ...report, cfd: { windowDays: n, raised, days: cfdDays, fromCounts: true }, wip: { weeks: wk, ageKnown: wk.filter((w) => w.p50 != null).length >= WEEKS - 4 } };
   out.facts = insightFacts(out, now);
   return out;
 }

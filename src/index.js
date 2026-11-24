@@ -1,4 +1,4 @@
-import { buildReport, countPlan, applyCounts } from './metrics.js';
+import { buildReport, countPlan, applyCounts, ageSummary } from './metrics.js';
 import { generateInsights, signalTexts, INSIGHT_VERSION } from './insights.js';
 import { SOURCES, DEFAULT_SOURCE } from './sources.js';
 
@@ -116,15 +116,27 @@ async function computeCounts(src) {
   const p = 'project = ' + src.project;
   const names = src.doing.map((n) => '"' + n + '"').join(', ');
   const on = (d) => (d === plan.today ? 'status IN (' + names + ')' : 'status WAS IN (' + names + ') ON "' + d + '"');
-  const jobs = [
-    ...plan.cohortDays.map((d) => ['cohort', d, p + ' AND created >= "' + plan.start + '" AND ' + on(d)]),
-    ...plan.weeks.map((w) => ['wip', w.date, p + ' AND ' + on(w.date)]),
-  ];
-  const out = await Promise.all(jobs.map(([k, d, jql]) => count(src, jql).then((n) => [k, d, n], () => [k, d, null])));
-  const failed = out.filter((x) => x[2] == null).length;
+  const cohort = plan.cohortDays.map((d) => count(src, p + ' AND created >= "' + plan.start + '" AND ' + on(d)).then((n) => [d, n], () => [d, null]));
+  // Each week: who was in progress, read with their raised dates so the age of work in progress can be shown as well as the number.
+  const weekJql = (w) => p + ' AND ' + on(w.date);
+  const weeks = plan.weeks.map((w) => jira(src, { jql: weekJql(w), fields: 'created', maxResults: '1000' }).then((j) => ({ w, total: j.total, created: j.issues.map((i) => Date.parse(i.fields.created)) }), () => ({ w, total: null, created: [] })));
+  const [cohortOut, weekOut] = await Promise.all([Promise.all(cohort), Promise.all(weeks)]);
+  // Weeks with more than one page of items get the next page while the request has room (the limit is 50 subrequests).
+  let room = 46 - cohortOut.length - weekOut.length;
+  for (const r of weekOut) {
+    while (r.total != null && r.created.length < r.total && r.created.length % 1000 === 0 && r.created.length > 0 && room-- > 0) {
+      try { const j = await jira(src, { jql: weekJql(r.w), fields: 'created', startAt: String(r.created.length), maxResults: '1000' }); if (!j.issues.length) break; r.created.push(...j.issues.map((i) => Date.parse(i.fields.created))); } catch (e) { break; }
+    }
+  }
+  const failed = cohortOut.filter((x) => x[1] == null).length + weekOut.filter((x) => x.total == null).length;
   if (failed > 6) throw new Error('too many history queries failed');
   const counts = { generatedAt: new Date(now).toISOString(), cohort: {}, wip: {} };
-  for (const [k, d, n] of out) if (n != null) counts[k][d] = n;
+  for (const [d, n] of cohortOut) if (n != null) counts.cohort[d] = n;
+  for (const r of weekOut) {
+    if (r.total == null) continue;
+    const t = r.w.date === plan.today ? now : Date.parse(r.w.date) + 86400000 - 1;
+    counts.wip[r.w.date] = { n: r.total, ...ageSummary(r.created, t) };
+  }
   return counts;
 }
 async function getCounts(request, id, src, allowFetch) {
