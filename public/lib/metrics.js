@@ -173,10 +173,11 @@ function simulate(sample, rnd, horizonWeeks, runs) {
 const band = (totals) => ({ p5: r0(percentile(totals, 0.05)), p15: r0(percentile(totals, 0.15)), p50: r0(percentile(totals, 0.5)), p85: r0(percentile(totals, 0.85)), p95: r0(percentile(totals, 0.95)) });
 
 // weeklyCounts: complete weeks, oldest first. weekLabels: ISO date for each origin (length = counts + 1; the last is the coming week).
-export function forecast(weeklyCounts, weekLabels, now, { horizonWeeks = 4, runs = 5000, lookback = 12 } = {}) {
+export function forecast(weeklyCounts, weekLabels, now, { horizonWeeks = 4, runs = 5000, lookback = 12, backlog = null } = {}) {
   const n = weeklyCounts.length;
   const sample = weeklyCounts.slice(-lookback);
-  const target = Math.max(10, Math.round((avg(sample) * 3) / 10) * 10); // a backlog of roughly three weeks of work
+  // The backlog to clear: the real open count when the caller knows it, otherwise roughly three weeks of work.
+  const target = backlog > 0 ? Math.round(backlog) : Math.max(10, Math.round((avg(sample) * 3) / 10) * 10);
   if (sample.length < 4 || sample.every((c) => c === 0)) return null;
   const seed = Math.floor(startOfWeekUTC(now) / DAY);
   const rnd = mulberry32(seed);
@@ -414,7 +415,7 @@ export function applyCounts(report, counts, now) {
   return out;
 }
 
-export function buildReport({ resolved, arrivals, open, totals, history, pipeline, countHistory }, now) {
+export function buildReport({ resolved, arrivals, open, totals, history, pipeline, countHistory, backlog }, now) {
   const tp = throughput(resolved, now);
   const labels = tp.weeks.map((w) => w.week);
   const report = {
@@ -424,7 +425,7 @@ export function buildReport({ resolved, arrivals, open, totals, history, pipelin
     leadTime: leadTime(resolved, now),
     age: workItemAge(open, now),
     flow: arrivalsDepartures(arrivals, resolved, now),
-    forecast: forecast(tp.weeks.filter((w) => !w.partial).map((w) => w.count), labels, now),
+    forecast: forecast(tp.weeks.filter((w) => !w.partial).map((w) => w.count), labels, now, { backlog }),
     cfd: null,
     wip: null,
     pipeline: pipelineView(pipeline),

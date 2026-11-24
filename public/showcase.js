@@ -1,5 +1,6 @@
-/* Live delivery dashboard. Loads /api/flow once the page is ready and draws five SVG charts with real axes.
-   Everything is computed server-side; this file only draws and writes text. No libraries. */
+/* Delivery dashboard. Loads /api/flow once the page is ready and draws SVG charts with real axes.
+   For the live demos everything is computed server-side; this file only draws and writes text. No libraries.
+   The third tab ("Your data") draws a report that yourdata.js built in the browser from the visitor's own file: see window.AOShowcase. */
 (function () {
   'use strict';
   var sec = document.getElementById('showcase');
@@ -8,8 +9,10 @@
   var DAY = 86400000;
   var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   var data = null, drawn = false;
-  var SOURCES = { product: { title: 'Cloud platform delivery', blurb: 'Public bugs and suggestions for a large cloud product, with a heavy triage stage.', tracker: 'https://jira.atlassian.com/browse/JRACLOUD-' }, engine: { title: 'Database engine delivery', blurb: 'The engineering workflow of a database engine, from triage through code review, merge and verification.', tracker: 'https://jira.mongodb.org/browse/SERVER-' } };
-  var current = (location.hash === '#engine') ? 'engine' : 'product';
+  var SOURCES = { product: { title: 'Cloud platform delivery', blurb: 'Public bugs and suggestions for a large cloud product, with a heavy triage stage.', tracker: 'https://jira.atlassian.com/browse/JRACLOUD-' }, engine: { title: 'Database engine delivery', blurb: 'The engineering workflow of a database engine, from triage through code review, merge and verification.', tracker: 'https://jira.mongodb.org/browse/SERVER-' },
+    yours: { title: 'Your delivery data', blurb: 'Your own export, read in this browser. Nothing is uploaded.', tracker: null } };
+  var local = null; // the report built from the visitor's own file, kept while they look at the other tabs
+  var current = (location.hash === '#engine') ? 'engine' : (location.hash === '#yours') ? 'yours' : 'product';
 
   /* ---------- helpers ---------- */
   function el(name, attrs, parent) {
@@ -338,8 +341,9 @@
       var t = document.createElement('p'); t.className = 'evi-k'; t.textContent = e.title; old.appendChild(t);
       var ol = document.createElement('ol'); ol.className = 'evi-l';
       e.items.forEach(function (it) {
-        var li = document.createElement('li'), a = document.createElement('a');
-        a.href = SOURCES[current].tracker + it.id; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.textContent = '#' + it.id;
+        var li = document.createElement('li'), a = document.createElement(SOURCES[current].tracker ? 'a' : 'b');
+        if (SOURCES[current].tracker) { a.href = SOURCES[current].tracker + it.id; a.target = '_blank'; a.rel = 'noopener noreferrer'; }
+        a.textContent = typeof it.id === 'number' ? '#' + it.id : it.id;
         var sp = document.createElement('span'); sp.textContent = it.note;
         li.appendChild(a); li.appendChild(sp); ol.appendChild(li);
       });
@@ -360,7 +364,7 @@
     });
     evidence(d, map);
     var sum = document.getElementById('sum-box'); if (sum) sum.hidden = !(ins && ins.summary);
-    set('sc-gen', ins ? 'Commentary is generated from the figures above and refreshed every few minutes.' : '');
+    set('sc-gen', !ins ? '' : d.local ? 'These findings are worked out from the figures above, in your browser.' : 'Commentary is generated from the figures above and refreshed every few minutes.');
   }
 
   /* ---------- pipeline: where open work sits, and what finished work passed through ---------- */
@@ -387,12 +391,16 @@
     document.querySelectorAll('.subtab').forEach(function (b) { b.setAttribute('aria-selected', b.getAttribute('data-source') === id ? 'true' : 'false'); });
     document.querySelectorAll('.src[data-src]').forEach(function (n) { n.hidden = n.getAttribute('data-src') !== id; });
     set('dash-h', SOURCES[id].title); set('sc-blurb', SOURCES[id].blurb);
+    var yd = document.getElementById('yd'); if (yd) yd.hidden = id !== 'yours';
     try { history.replaceState(null, '', id === 'product' ? location.pathname : '#' + id); } catch (e) { /* not essential */ }
   }
   document.querySelectorAll('.subtab').forEach(function (b) { b.addEventListener('click', function () { var id = b.getAttribute('data-source'); if (id === current) return; useSource(id); load(); }); });
 
   /* ---------- load, draw, redraw ---------- */
-  function state(name) { sec.setAttribute('data-state', name); }
+  function state(name) {
+    sec.setAttribute('data-state', name);
+    if (name === 'idle') { set('sc-updated', 'Waiting for your file'); set('sc-period', ''); }
+  }
   function hasHistory(d) { return !!(d.cfd && d.wip && d.facts && d.facts.cumulativeFlow && d.facts.workInProgress.overTime); }
   function draw() {
     if (!data) return;
@@ -407,6 +415,7 @@
   }
   function show(j) {
     data = j; state('ready'); headline(j); draw(); commentary(j);
+    if (j.local) { set('sc-updated', 'From your file, up to ' + dmyFull(j.generatedAt.slice(0, 10))); return; }
     var when = new Date(j.generatedAt);
     set('sc-updated', 'Updated ' + when.toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }));
     if (!j.insights) poll(0);
@@ -426,9 +435,18 @@
   function fetchFlow(fresh) {
     return fetch(current === 'product' ? '/api/flow' : '/api/flow?p=' + current, { headers: { Accept: 'application/json' }, cache: fresh ? 'reload' : 'default' }).then(function (r) { if (!r.ok) throw new Error('status ' + r.status); return r.json(); });
   }
-  function load() { var want = current; state('loading'); fetchFlow(false).then(function (j) { if (want === current) show(j); }).catch(function () { if (want === current) state('error'); }); }
+  function load() {
+    if (current === 'yours') { if (local) show(local); else { data = null; drawn = false; state('idle'); } return; }
+    var want = current; state('loading'); fetchFlow(false).then(function (j) { if (want === current) show(j); }).catch(function () { if (want === current) state('error'); }); }
   var retry = document.getElementById('sc-retry'); if (retry) retry.addEventListener('click', load);
   var rt; window.addEventListener('resize', function () { clearTimeout(rt); rt = setTimeout(function () { if (drawn) draw(); }, 150); });
+
+  // What yourdata.js uses: it builds a report from the visitor's file and hands it here to be drawn.
+  window.AOShowcase = {
+    current: function () { return current; },
+    showLocal: function (j) { j.local = true; local = j; if (current === 'yours') show(j); },
+    clear: function () { local = null; data = null; drawn = false; if (current === 'yours') state('idle'); },
+  };
 
   if (current !== 'product') useSource(current);
 

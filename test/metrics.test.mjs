@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { buildReport, percentile, startOfWeekUTC, cumulativeFlow, wipTrend, statusAt, categoryOf } from '../src/metrics.js';
+import { buildReport, percentile, startOfWeekUTC, cumulativeFlow, wipTrend, statusAt, categoryOf } from '../public/lib/metrics.js';
 const DAY = 86400000, now = Date.UTC(2026, 10, 4, 12);
 let s = 7; const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647;
 const resolved = [], arrivals = [], open = [];
@@ -60,7 +60,7 @@ console.log('ok');
 
 // ---- second-layer signals ----
 {
-  const { insightSignals } = await import('../src/signals.js');
+  const { insightSignals } = await import('../public/lib/signals.js');
   const D = 86400000, n0 = Date.UTC(2026, 10, 4, 12);
   const wk = (counts) => ({ weeks: counts.map((c, i) => ({ week: 'w' + i, count: c, partial: false })).concat([{ week: 'now', count: 3, partial: true }]) });
   const base = (counts, extra = {}) => ({
@@ -81,8 +81,8 @@ console.log('ok');
 }
 console.log('signals ok');
 {
-  const { buildEvidence } = await import('../src/metrics.js');
-  const { insightSignals } = await import('../src/signals.js');
+  const { buildEvidence } = await import('../public/lib/metrics.js');
+  const { insightSignals } = await import('../public/lib/signals.js');
   const D = 86400000, n0 = Date.UTC(2026, 10, 4, 12);
   const items = Array.from({ length: 12 }, (_, i) => ({ id: 100 + i, status: i < 8 ? 'In Progress' : 'In Review', age: 200 - i * 10, idle: i < 7 ? 90 - i : 3 }));
   const rep = { age: { items, count: 12 }, evidence: {} };

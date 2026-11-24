@@ -1,4 +1,4 @@
-import { buildReport, countPlan, applyCounts, ageSummary } from './metrics.js';
+import { buildReport, countPlan, applyCounts, ageSummary } from '../public/lib/metrics.js';
 import { generateInsights, signalTexts, INSIGHT_VERSION } from './insights.js';
 import { SOURCES, DEFAULT_SOURCE } from './sources.js';
 
