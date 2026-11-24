@@ -5,9 +5,6 @@ export const SOURCES = {
     jira: 'https://jira.mongodb.org', project: 'SERVER', history: false, countHistory: true, cap: 11000, openCap: 1000,
     // Statuses the tracker groups as "in progress": used to ask how many items were in progress on a given date.
     doing: ['In Progress', 'In Code Review', 'Waiting For User Input', 'Needs Merge', 'Needs Verification', 'Investigating', 'Blocked', 'Exception in Review', 'Remediation in Review', 'Needs Backport', 'Remediation Pending Release'],
-    // Where open work can sit, in pipeline order, and the stages finished work may have passed through.
-    stages: ['Needs Triage', 'Backlog', 'Ready for Work', 'In Progress', 'Investigating', 'In Code Review', 'Needs Merge', 'Needs Verification', 'Blocked', 'Waiting For User Input'],
-    passedThrough: [['Worked on', 'In Progress'], ['Code reviewed', 'In Code Review'], ['Blocked at any point', 'Blocked']],
   },
 };
 export const DEFAULT_SOURCE = 'product';

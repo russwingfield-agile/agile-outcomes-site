@@ -90,7 +90,7 @@ assert.equal(res.status, 200); assert.ok(body.cfd, 'falls back to status names')
   res = await mod.fetch(new Request('https://example.test/api/flow?p=engine'), env, ctx); body = await res.json();
   assert.equal(res.status, 200);
   assert.ok(hosts.has('jira.mongodb.org') && !hosts.has('example.invalid'), 'second source is queried at its own host');
-  assert.ok(body.pipeline && body.pipeline.stages.length === 10 && body.pipeline.passedThrough.length === 3, 'pipeline view');
+  assert.equal(body.pipeline, null, 'the two tabs show the same charts: no extra pipeline view');
   assert.equal(body.cfd, null, 'no status-history charts until they are asked for');
   assert.equal(body.historyPending, true, 'and the page is told they are coming');
   assert.ok(!('cfdBase' in body), 'working data is not sent');
@@ -105,10 +105,9 @@ assert.equal(res.status, 200); assert.ok(body.cfd, 'falls back to status names')
   assert.ok(hb.facts.workInProgress.overTime.medianAgeNowDays > 0, 'age of work in progress is in the facts');
   assert.ok(hb.facts.cumulativeFlow && hb.facts.workInProgress.overTime && hb.historyPending === false, 'and their facts');
   assert.ok(hb.insights && hb.insights.cumulativeFlow, 'commentary covers the new chart');
+  assert.ok(hb.evidence.cumulativeFlow && hb.evidence.cumulativeFlow.items.length === 3, 'links to the oldest items waiting to start');
   const again = await (await mod.fetch(new Request('https://example.test/api/flow?p=engine'), env, ctx)).json();
   assert.ok(again.cfd && again.historyPending === false, 'once built, the history comes with every later reply');
-  assert.ok(body.facts.pipeline && body.facts.signals.pipeline, 'pipeline facts and finding');
-  assert.ok(body.insights && body.insights.pipeline, 'pipeline commentary entry');
   globalThis.fetch = orig;
   res = await mod.fetch(new Request('https://example.test/api/flow?p=../../etc'), env, ctx); body = await res.json();
   assert.ok(res.status === 200 && body.pipeline === null && body.cfd, 'an unknown source falls back to the default');

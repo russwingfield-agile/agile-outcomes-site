@@ -120,9 +120,11 @@ async function computeCounts(src) {
   // Each week: who was in progress, read with their raised dates so the age of work in progress can be shown as well as the number.
   const weekJql = (w) => p + ' AND ' + on(w.date);
   const weeks = plan.weeks.map((w) => jira(src, { jql: weekJql(w), fields: 'created', maxResults: '1000' }).then((j) => ({ w, total: j.total, created: j.issues.map((i) => Date.parse(i.fields.created)) }), () => ({ w, total: null, created: [] })));
-  const [cohortOut, weekOut] = await Promise.all([Promise.all(cohort), Promise.all(weeks)]);
+  // The oldest items raised in the window that are still waiting to be started, to link to from the chart.
+  const waiting = jira(src, { jql: p + ' AND created >= "' + plan.start + '" AND resolution is EMPTY AND status NOT IN (' + names + ') ORDER BY created ASC', fields: 'created', maxResults: '3' }).then((j) => j.issues.map((i) => ({ id: idOf(i.key), created: Date.parse(i.fields.created) })), () => []);
+  const [cohortOut, weekOut, waitingOut] = await Promise.all([Promise.all(cohort), Promise.all(weeks), waiting]);
   // Weeks with more than one page of items get the next page while the request has room (the limit is 50 subrequests).
-  let room = 46 - cohortOut.length - weekOut.length;
+  let room = 45 - cohortOut.length - weekOut.length;
   for (const r of weekOut) {
     while (r.total != null && r.created.length < r.total && r.created.length % 1000 === 0 && r.created.length > 0 && room-- > 0) {
       try { const j = await jira(src, { jql: weekJql(r.w), fields: 'created', startAt: String(r.created.length), maxResults: '1000' }); if (!j.issues.length) break; r.created.push(...j.issues.map((i) => Date.parse(i.fields.created))); } catch (e) { break; }
@@ -130,7 +132,7 @@ async function computeCounts(src) {
   }
   const failed = cohortOut.filter((x) => x[1] == null).length + weekOut.filter((x) => x.total == null).length;
   if (failed > 6) throw new Error('too many history queries failed');
-  const counts = { generatedAt: new Date(now).toISOString(), cohort: {}, wip: {} };
+  const counts = { generatedAt: new Date(now).toISOString(), cohort: {}, wip: {}, waiting: waitingOut };
   for (const [d, n] of cohortOut) if (n != null) counts.cohort[d] = n;
   for (const r of weekOut) {
     if (r.total == null) continue;

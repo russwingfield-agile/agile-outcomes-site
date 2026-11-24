@@ -407,7 +407,9 @@ export function applyCounts(report, counts, now) {
   const firstKnown = wk.find((w) => w.wip != null);
   if (!raised || !firstKnown || wk.filter((w) => w.wip != null).length < WEEKS - 4) return report;
   wk.forEach((w) => { if (w.wip == null) w.wip = firstKnown.wip; });
-  const out = { ...report, cfd: { windowDays: n, raised, days: cfdDays, fromCounts: true }, wip: { weeks: wk, ageKnown: wk.filter((w) => w.p50 != null).length >= WEEKS - 4 } };
+  const evidence = { ...report.evidence };
+  if (counts.waiting && counts.waiting.length) evidence.cumulativeFlow = { title: 'Oldest items raised and never started: decide on each', items: counts.waiting.slice(0, 3).map((it) => ({ id: it.id, note: `raised ${Math.round((now - it.created) / DAY)} days ago, not started` })) };
+  const out = { ...report, evidence, cfd: { windowDays: n, raised, days: cfdDays, fromCounts: true }, wip: { weeks: wk, ageKnown: wk.filter((w) => w.p50 != null).length >= WEEKS - 4 } };
   out.facts = insightFacts(out, now);
   return out;
 }
