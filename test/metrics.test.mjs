@@ -78,6 +78,18 @@ console.log('ok');
   assert.ok(lumpy.overall && lumpy.nextActions.length === 2);
   // too little data: no signal rather than a made-up one
   assert.equal(insightSignals(base([5, 5, 5])).throughput, undefined);
+  // a recovery inside a longer decline is called that, not a success story
+  const decl = base([90, 85, 80, 75, 70, 65, 60, 55, 50, 45, 40, 35, 20, 20, 20, 20, 20, 20, 20, 20, 40, 42, 44, 46, 41, 43]);
+  decl.throughput.trend = { slope: -1.2, intercept: 60 };
+  const rec = insightSignals(decl).throughput;
+  assert.ok(rec && rec.id === 'recovering' && /still slopes down/.test(rec.insight), 'recovery inside a decline');
+  // the queue gap uses everything resolved, so it matches the throughput and flow charts
+  const cf = { windowDays: 182, raised: 1000, days: Array.from({ length: 182 }, (_, i) => ({ day: 'd' + i, todo: i, doing: 5, done: i * 2 })) };
+  const rep = base(Array(26).fill(30), { cfd: cf });
+  rep.flow.days[181] = { arrived: 1000, departed: 900 };
+  const g = insightSignals(rep).cumulativeFlow;
+  assert.ok(g.id !== 'intake-outpaces', 'older items cleared count as finished: ' + g.id);
+  assert.match(g.insight, /finished at 34\.6/);
 }
 console.log('signals ok');
 {
