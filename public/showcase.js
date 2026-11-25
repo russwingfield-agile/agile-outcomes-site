@@ -199,12 +199,18 @@
     hit.addEventListener('pointerleave', function () { cross.setAttribute('visibility', 'hidden'); });
     var f = d.facts.cumulativeFlow;
     set('r-cf-raised', num(f.itemsRaisedInWindow)); set('r-cf-done', num(f.doneNow) + ' (' + f.doneSharePercent + '%)'); set('r-cf-doing', num(f.inProgressNow)); set('r-cf-todo', num(f.notStartedNow));
+    set('r-cf-all', f.resolvedIncludingOlder != null ? num(f.resolvedIncludingOlder) + (f.olderItemsCleared ? ' (' + num(f.olderItemsCleared) + ' older)' : '') : '–');
     aria('p-cfd', 'Cumulative flow of the ' + num(f.itemsRaisedInWindow) + ' items raised in the last 26 weeks. Today ' + num(f.doneNow) + ' are done, ' + num(f.inProgressNow) + ' are in progress and ' + num(f.notStartedNow) + ' have not started.');
   }
 
   /* ---------- 3c. Work in progress over time: how many, and how old ---------- */
   function drawWip(d) {
-    var W = d.wip.weeks, n = W.length, host = document.getElementById('p-wip');
+    var W = d.wip.weeks, n = W.length;
+    // Ages need each item's history. Where only counts are known, the chart of how many are in progress is shown instead.
+    var ages = d.wip.ageKnown !== false;
+    document.querySelectorAll('#wip-card [data-age]').forEach(function (n) { n.hidden = !ages; });
+    document.querySelectorAll('#wip-card [data-count]').forEach(function (n) { n.hidden = ages; });
+    var host = document.getElementById(ages ? 'p-wage' : 'p-wip');
     var h = host.clientWidth < 520 ? 210 : 230;
     var every = host.clientWidth < 520 ? 6 : 4;
     function frame(id, top, label, tickFmt) {
@@ -223,18 +229,17 @@
     function targets(g, tip) {
       W.forEach(function (w, i) { el('rect', { x: g.m.l + i * g.bw, y: g.m.t, width: g.bw, height: g.ih, fill: 'transparent', 'data-tip': tip(w) }, g.s.svg); });
     }
-    var maxW = Math.max.apply(null, W.map(function (w) { return w.wip; })) * 1.1 || 1;
-    var a = frame('p-wip', maxW, 'Items', num);
-    var area = 'M' + a.x(0).toFixed(1) + ',' + a.y(0).toFixed(1) + W.map(function (w, i) { return 'L' + a.x(i).toFixed(1) + ',' + a.y(w.wip).toFixed(1); }).join('') + 'L' + a.x(n - 1).toFixed(1) + ',' + a.y(0).toFixed(1) + 'Z';
-    el('path', { d: area, class: 'wipa' }, a.s.svg);
-    el('path', { d: path(a, 'wip'), class: 'wipl' }, a.s.svg);
-    el('circle', { cx: a.x(n - 1), cy: a.y(W[n - 1].wip), r: 3.6, class: 'mk', stroke: 'var(--cf-doing)' }, a.s.svg);
-    targets(a, function (w) { return 'Week of ' + dmyFull(w.week) + ': ' + w.wip + ' in progress' + (w.partial ? ' (so far this week)' : ''); });
+    if (!ages) {
+      var maxW = Math.max.apply(null, W.map(function (w) { return w.wip; })) * 1.1 || 1;
+      var a = frame('p-wip', maxW, 'Items', num);
+      var area = 'M' + a.x(0).toFixed(1) + ',' + a.y(0).toFixed(1) + W.map(function (w, i) { return 'L' + a.x(i).toFixed(1) + ',' + a.y(w.wip).toFixed(1); }).join('') + 'L' + a.x(n - 1).toFixed(1) + ',' + a.y(0).toFixed(1) + 'Z';
+      el('path', { d: area, class: 'wipa' }, a.s.svg);
+      el('path', { d: path(a, 'wip'), class: 'wipl' }, a.s.svg);
+      el('circle', { cx: a.x(n - 1), cy: a.y(W[n - 1].wip), r: 3.6, class: 'mk', stroke: 'var(--cf-doing)' }, a.s.svg);
+      targets(a, function (w) { return 'Week of ' + dmyFull(w.week) + ': ' + w.wip + ' in progress' + (w.partial ? ' (so far this week)' : ''); });
+    }
 
-    // Ages need each item's history. Where the history came from counts, only the number in progress is shown.
-    var ages = d.wip.ageKnown !== false;
-    document.querySelectorAll('#wip-card [data-age]').forEach(function (n) { n.hidden = !ages; });
-    set('wip-cap', ages ? 'How much is in progress each week, and how long it has been open' : 'How much is in progress each week');
+    set('wip-cap', ages ? 'How old the work in progress is, week by week' : 'How much is in progress each week');
     if (ages) {
       var maxA = Math.max.apply(null, W.map(function (w) { return w.p85 || 0; })) * 1.1 || 10;
       var b = frame('p-wage', maxA, 'Days', num);
@@ -351,8 +356,8 @@
     var ins = d.insights;
     // with status history the work-in-progress commentary belongs to the over-time chart
     var map = {}; Object.keys(MAP).forEach(function (k) { map[k] = MAP[k]; });
-    if (hasHistory(d)) map.workInProgress = 'in-wip';
-    ['in-age', 'in-wip', 'in-cfd'].forEach(function (id) { var b = document.getElementById(id); if (b && Object.keys(map).every(function (k) { return map[k] !== id; })) b.hidden = true; });
+    if (hasHistory(d)) { map.workInProgress = 'in-wip'; map.flow = 'in-flow2'; }
+    ['in-age', 'in-wip', 'in-cfd', 'in-flow', 'in-flow2'].forEach(function (id) { var b = document.getElementById(id); if (b && Object.keys(map).every(function (k) { return map[k] !== id; })) b.hidden = true; });
     Object.keys(map).forEach(function (k) {
       var box = document.getElementById(map[k]); if (!box) return;
       var p = box.querySelector('.in-t');
@@ -401,6 +406,7 @@
     var hn = document.getElementById('hist-note'); if (hn) hn.hidden = !data.historyPending;
     ['cfd-card', 'wip-card'].forEach(function (id) { var c = document.getElementById(id); if (c) c.hidden = !hist; });
     var old = document.getElementById('age-card'); if (old) old.hidden = hist;
+    var fc = document.getElementById('flow-card'); if (fc) fc.hidden = hist; // its figures and commentary move into cumulative flow
     (hist ? [drawThroughput, drawLead, drawCFD, drawWip, drawFlow, drawForecast] : [drawThroughput, drawLead, drawAge, drawFlow, drawForecast]).forEach(function (f) { try { f(data); } catch (e) { if (window.console) console.error(f.name, e); } });
     try { drawPipeline(data); } catch (e) { if (window.console) console.error('drawPipeline', e); }
     drawn = true;

@@ -240,7 +240,9 @@ export function insightFacts(report, now) {
   const f = report.forecast;
   const wipFacts = (() => {
     if (!report.wip) return null;
-    const w = report.wip.weeks, nowP = w[w.length - 1], then = w[Math.max(0, w.length - 5)];
+    const w = report.wip.weeks, nowP = { ...w[w.length - 1] }, then = w[Math.max(0, w.length - 5)];
+    // If the latest week has no age yet, use the most recent week that does.
+    if (nowP.p50 == null) { const known = w.filter((x) => x.p50 != null).pop(); if (known) { nowP.p50 = known.p50; nowP.p85 = known.p85; } }
     const wipChange = pct(nowP.wip, then.wip), ageChange = pct(nowP.p50, then.p50);
     return {
       itemsNow: nowP.wip, itemsFourWeeksAgo: then.wip, changeVsFourWeeksAgoPercent: wipChange, direction: dirOf(wipChange),
@@ -257,6 +259,8 @@ export function insightFacts(report, now) {
       doneSharePercent: total ? r0((last.done / total) * 100) : 0,
       inProgressFourWeeksAgo: ago.doing, inProgressChangePercent: pct(last.doing, ago.doing), inProgressDirection: dirOf(pct(last.doing, ago.doing)),
       notStartedFourWeeksAgo: ago.todo,
+      resolvedIncludingOlder: report.flow.days[report.flow.days.length - 1].departed,
+      olderItemsCleared: Math.max(0, report.flow.days[report.flow.days.length - 1].departed - last.done),
     };
   })();
   const signals = insightSignals(report);
@@ -397,12 +401,14 @@ export function applyCounts(report, counts, now) {
   });
   const raised = cfdDays[n - 1].todo + cfdDays[n - 1].doing + cfdDays[n - 1].done;
   const plan = countPlan(now);
-  let prev = null;
+  let prev = null, prevAge = null;
   // Each week is either a bare count or { n, p50, p85 } when the ages of the items in progress were read as well.
   const wk = plan.weeks.map((w) => {
     const v = counts.wip && counts.wip[w.date], n = v && typeof v === 'object' ? v.n : v;
     if (typeof n === 'number') prev = n;
-    return { week: w.week, partial: w.partial, wip: typeof n === 'number' ? n : prev, p50: v && v.p50 != null ? v.p50 : null, p85: v && v.p85 != null ? v.p85 : null };
+    const had = v && v.p50 != null;
+    if (had) prevAge = { p50: v.p50, p85: v.p85 };
+    return { week: w.week, partial: w.partial, wip: typeof n === 'number' ? n : prev, p50: had ? v.p50 : (typeof n !== 'number' && prevAge ? prevAge.p50 : null), p85: had ? v.p85 : (typeof n !== 'number' && prevAge ? prevAge.p85 : null) };
   });
   const firstKnown = wk.find((w) => w.wip != null);
   if (!raised || !firstKnown || wk.filter((w) => w.wip != null).length < WEEKS - 4) return report;
