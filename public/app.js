@@ -32,30 +32,44 @@
   try { window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', syncTheme); } catch (e) {}
   syncTheme();
 
-  /* ---------- header + scroll spy ---------- */
+  /* ---------- header ---------- */
   var top = $('#top');
   function onScroll() { top.classList.toggle('scrolled', window.scrollY > 8); }
   window.addEventListener('scroll', onScroll, { passive: true }); onScroll();
 
-  var links = $$('.nav a');
-  if ('IntersectionObserver' in window) {
+  /* ---------- mobile menu ---------- */
+  var menuBtn = $('#menu');
+  function setMenu(open) {
+    top.classList.toggle('menu-open', open);
+    menuBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    menuBtn.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+  }
+  if (menuBtn) {
+    menuBtn.addEventListener('click', function () { setMenu(!top.classList.contains('menu-open')); });
+    $$('.nav a').forEach(function (a) { a.addEventListener('click', function () { setMenu(false); }); });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && top.classList.contains('menu-open')) { setMenu(false); menuBtn.focus(); }
+    });
+  }
+
+  /* ---------- scroll spy (home page: About and Contact) ---------- */
+  var home = document.body.getAttribute('data-page') === 'home';
+  if (home && 'IntersectionObserver' in window) {
+    var links = $$('.nav a[href^="/#"]');
     var spy = new IntersectionObserver(function (entries) {
       entries.forEach(function (en) {
         if (en.isIntersecting) {
-          links.forEach(function (a) { a.setAttribute('aria-current', a.getAttribute('href') === '#' + en.target.id ? 'true' : 'false'); });
+          links.forEach(function (a) { a.setAttribute('aria-current', a.getAttribute('href') === '/#' + en.target.id ? 'true' : 'false'); });
         }
       });
     }, { rootMargin: '-40% 0px -55% 0px' });
-    ['cases', 'about', 'engagements', 'contact'].forEach(function (id) { var s = document.getElementById(id); if (s) spy.observe(s); });
+    ['about', 'contact'].forEach(function (id) { var s = document.getElementById(id); if (s) spy.observe(s); });
   }
 
   $('#yr').textContent = new Date().getFullYear();
 
-  /* Everything below belongs to the home page only. */
-  if (!$('#cases')) return;
-
   /* Warm the Worker and the browser cache so the live dashboard opens with its data ready. */
-  (window.requestIdleCallback || function (f) { setTimeout(f, 1500); })(function () { try { fetch('/api/flow').catch(function () {}); } catch (e) {} });
+  if (home) (window.requestIdleCallback || function (f) { setTimeout(f, 1500); })(function () { try { fetch('/api/flow').catch(function () {}); } catch (e) {} });
 
   /* ---------- results: count-up ---------- */
   function fmt(v, dec, sign) {
@@ -83,7 +97,11 @@
 
   /* ---------- contact ---------- */
   var addr = MAIL_USER + '@' + MAIL_HOST;
-  $('#mail-link').setAttribute('href', 'mailto:' + addr + '?subject=' + encodeURIComponent('Agile Outcomes enquiry'));
+  /* Any link with data-mail="Subject" becomes a mailto link to the address above. */
+  $$('[data-mail]').forEach(function (a) { a.setAttribute('href', 'mailto:' + addr + '?subject=' + encodeURIComponent(a.getAttribute('data-mail'))); });
+  var mailLink = $('#mail-link');
+  if (!mailLink) return;
+  mailLink.setAttribute('href', 'mailto:' + addr + '?subject=' + encodeURIComponent('Agile Outcomes enquiry'));
   $('#mail-text').textContent = addr;
   $('#copy').addEventListener('click', function () {
     var done = function (ok) {
