@@ -553,3 +553,5 @@ footer{padding-block:36px calc(36px + env(safe-area-inset-bottom,0px));color:var
 .hub{padding-bottom:0}
 .about-offer{padding-bottom:clamp(24px,4vw,40px)}
 .about-offer .more{color:var(--ink);margin-left:6px}.demo-foot .more{color:var(--ink)}
+.built-sub{margin:-8px 0 18px;color:var(--muted);max-width:62ch;text-wrap:pretty}
+.box h3{font-size:1.2rem;padding-bottom:12px;border-bottom:1px solid var(--line)}
