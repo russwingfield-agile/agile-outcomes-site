@@ -4,7 +4,7 @@ Website for Agile Outcomes (agileoutcomes.co.uk).
 
 - `public/` holds the site. Everything in this folder is published. Pages: `index.html` (home), `delivery/`, `backlog/`, `outcomes/`, `outcome-partner/` (one page per offer) and `demo/` (Live Demos hub plus the dashboard below). Shared styles in `styles.css`, shared script in `app.js`.
 - Offer pages follow one template (headline, problem, demo panel, what you get, built in your tools, objection, price, next step, proof). Prices are list crossed out plus introductory price; they are draft figures, marked with comments in the HTML.
-- The Backlog and Outcomes demo panels are curated examples. A live demo replaces the contents of `.demo-body` inside `.demo-panel` (the frame has a fixed height, so the page layout does not move). The Delivery page embeds `/demo/?embed=1` in the same frame.
+- The Backlog and Outcomes demo panels are curated examples. A live demo replaces the contents of `.demo-body` inside `.demo-panel`. The Delivery page embeds `/demo/?embed=1&compact=1` (just the headline figures and the first chart) in an iframe, because the full dashboard is very tall; the full thing lives at `/demo/`.
 - Contact: any link with `data-mail="Subject"` becomes a mailto link to the address in `app.js`.
 - `wrangler.jsonc` tells Cloudflare to publish `public/`. Deploy command: `npx wrangler deploy`. No build command is needed.
 - Preview locally with `python3 -m http.server 8000 --bind 127.0.0.1` from inside `public/`.

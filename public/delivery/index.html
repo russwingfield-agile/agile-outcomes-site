@@ -57,9 +57,15 @@
 <section class="hero page" aria-labelledby="h1">
   <div class="wrap">
     <div class="hero-copy">
-      <p class="eyebrow">Delivery · for heads of delivery and engineering</p>
+      <p class="eyebrow"><span class="ib"><svg class="ico" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 20V11M12 20V5M19 20v-6"/></svg></span>Delivery · for heads of delivery and engineering</p>
       <h1 id="h1">See how your team is really delivering, and a weekly review that acts on it.</h1>
-      <p class="lead">You’ve been asked to do more with the same people, but nobody can say where the time goes. Without a clear view, lead time and what’s stuck are guesses.</p>
+      <p class="lead">You’ve been asked to do more with the same people, but nobody can say where the time goes.</p>
+      <div class="hero-price">
+        <!-- DRAFT FIGURES (brief section 4): confirm list and introductory prices before launch -->
+        <p class="price"><span class="vh">List price </span><s class="was">£5,500</s><span class="vh">, introductory price </span><strong class="now">£4,250</strong></p>
+        <p class="eff">About five days of work</p>
+      </div>
+      <p class="why">Introductory price while I take on my first few clients. In return I ask for a short quote and permission to share the outcome, anonymously.</p>
       <div class="actions">
         <a class="btn" href="#demo">Try the free demo <span class="arr" aria-hidden="true">→</span></a>
         <a class="btn btn-ghost" href="/#contact">Talk it through</a>
@@ -70,109 +76,64 @@
 
 <section class="sec demo-sec" id="demo" aria-labelledby="demo-h">
   <div class="wrap">
-    <div class="demo-panel">
+    <div class="demo-panel has-frame">
       <div class="demo-bar">
         <h2 id="demo-h">Delivery demo</h2>
         <span class="live-tag">Live</span>
       </div>
       <div class="demo-body">
-        <iframe class="demo-frame" src="/demo/?embed=1" title="Live delivery dashboard, with a picker for two public example projects" loading="lazy"></iframe>
+        <iframe class="demo-frame" src="/demo/?embed=1&compact=1" title="Live delivery dashboard on a public example project" loading="lazy"></iframe>
       </div>
       <div class="demo-foot">
-        <p><strong>Live now:</strong> real public Jira data from two projects, with plain-English insight on each chart. <a href="/demo/">Open it full width</a>.</p>
-        <p class="notify"><strong>Bring your own data: coming next.</strong> Drop in your own export and see your charts, processed in your browser only. <a data-mail="Tell me when the Delivery drop-your-own-file demo is live" href="#contact">Email me</a> or <a href="https://www.linkedin.com/in/russwingfield/" target="_blank" rel="noopener">follow me on LinkedIn</a> to hear when it ships.</p>
+        <p><strong>Live now</strong> on real public data. <a href="/demo/">Open the full dashboard</a> with both example projects.</p>
+        <p class="notify"><strong>Coming next:</strong> drop in your own export, processed in your browser only. <a data-mail="Tell me when the Delivery drop-your-own-file demo is live" href="#contact">Email me</a> or <a href="https://www.linkedin.com/in/russwingfield/" target="_blank" rel="noopener">follow me on LinkedIn</a>.</p>
       </div>
     </div>
   </div>
 </section>
 
-<section class="sec alt" aria-labelledby="get-h">
+<section class="sec alt tight" aria-labelledby="get-h">
   <div class="wrap">
-    <header class="sec-head rv"><p class="eyebrow">What you get</p><h2 id="get-h">Something working on day one. A number that moves.</h2></header>
+    <h2 id="get-h" class="h-sm">What you get</h2>
     <ol class="get rv">
-      <li><p class="get-k">Day one</p><p>You see your own throughput, lead time, work in progress, cumulative flow and forecast.</p></li>
-      <li><p class="get-k">End of week one</p><p>A weekly review is running from it, with a first action agreed.</p></li>
-      <li><p class="get-k">The number that moves</p><p>Lead time spread, the age of work in progress, and how reliable your forecast is.</p></li>
+      <li><span class="ib"><svg class="ico" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></span><p class="get-k">Day one</p><p>Your own throughput, lead time, work in progress, cumulative flow and forecast.</p></li>
+      <li><span class="ib"><svg class="ico" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg></span><p class="get-k">End of week one</p><p>A weekly review running from it, with a first action agreed.</p></li>
+      <li><span class="ib"><svg class="ico" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 17l5-5 4 4 7-8"/><path d="M15 8h5v5"/></svg></span><p class="get-k">The number that moves</p><p>Lead time spread, age of work in progress, forecast reliability.</p></li>
     </ol>
   </div>
 </section>
 
-<section class="sec" aria-labelledby="built-h">
+<section class="sec tight" aria-labelledby="built-h">
   <div class="wrap">
-    <header class="sec-head rv"><p class="eyebrow">Built in your tools</p><h2 id="built-h">Owned by your team from the first day.</h2><p class="sub">I work in your tracker and your infrastructure, with the AI tools you already approve. Nothing for you to security-vet, nothing to untangle at the end, and you can leave at any time and carry on.</p></header>
+    <h2 id="built-h" class="h-sm">Built in your tools, owned by your team from day one</h2>
     <div class="two rv">
-      <div class="box"><h3>What I need from you</h3><p class="note">Day one starts when access lands.</p><ul class="ticks"><li>A tracker seat. Read-only is enough to start.</li><li>A sandbox or dev environment to build in.</li><li>AI tools your company has already approved.</li></ul></div>
-      <div class="box"><h3>Out of scope</h3><!-- TODO(Russ): confirm out-of-scope items for this offer -->
-        <ul class="crosses"><li>Changing how your teams work, or setting targets for them. The build gives you the view and the review; what you change is yours.</li><li>Tracker clean-up beyond what the views need.</li></ul></div>
+      <div class="box"><h3><svg class="ico" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7"/></svg> I need from you</h3><ul class="ticks"><li>A tracker seat (read-only is enough)</li><li>A sandbox or dev environment</li><li>Your already-approved AI tools</li></ul><p class="note">Day one starts when access lands.</p></div>
+      <div class="box"><h3><svg class="ico" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg> Out of scope</h3><!-- TODO(Russ): confirm out-of-scope items for this offer -->
+        <ul class="crosses"><li>Changing how your teams work, or setting targets</li><li>Tracker clean-up beyond what the views need</li></ul></div>
     </div>
   </div>
 </section>
 
-<section class="sec alt" aria-labelledby="obj-h">
+<section class="sec tight" aria-label="Doing it yourself with AI">
   <div class="wrap">
-    <div class="obj rv">
-      <p class="eyebrow">Fair question</p>
-      <h2 id="obj-h">Couldn’t we do this ourselves with AI?</h2>
-      <p>You can get charts from a model. The harder parts are knowing which ones to trust, what a long tail of lead times means for your team, and getting people to open the review every week. The charts are the proof. The review is what changes things.</p>
+    <aside class="callout rv"><span class="ib"><svg class="ico" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/></svg></span><p><strong>Couldn’t we do this ourselves with AI?</strong> You can get charts from a model. The hard part is knowing which to trust and getting people to open the review every week.</p></aside>
+  </div>
+</section>
+
+<section class="sec alt tight" aria-label="Next step">
+  <div class="wrap">
+    <div class="slim rv">
+      <span class="ib"><svg class="ico" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12a6 6 0 016-6h8M15 3l3 3-3 3M20 12a6 6 0 01-6 6H6M9 21l-3-3 3-3"/></svg></span>
+      <p><strong>Then keep it working with Outcome Partner.</strong> A monthly review and coaching. Cancel anytime.</p>
+      <a class="btn btn-ghost btn-sm" href="/outcome-partner/">See Outcome Partner <span class="arr" aria-hidden="true">→</span></a>
     </div>
   </div>
 </section>
 
-<section class="sec" id="price" aria-labelledby="price-h">
+<section class="sec tight" aria-labelledby="proof-h">
   <div class="wrap">
-    <div class="price-card rv">
-      <div>
-        <p class="eyebrow">Price</p>
-        <h2 id="price-h">What it costs.</h2>
-        <!-- DRAFT FIGURES (brief section 4): confirm list and introductory prices before launch -->
-        <p class="price"><span class="vh">List price </span><s class="was">£5,500</s><span class="vh">, introductory price </span><strong class="now">£4,250</strong></p>
-        <p class="eff">About five days of work.</p>
-      </div>
-      <p class="why">The introductory price is because I’m taking on my first few clients. In return I’ll ask for a short quote and your permission to share the outcome, anonymously.</p>
-    </div>
-  </div>
-</section>
-
-<section class="sec alt" aria-labelledby="next-h">
-  <div class="wrap">
-    <div class="teaser rv">
-      <div>
-        <p class="eyebrow">Next step</p>
-        <h2 id="next-h">Keep it working with Outcome Partner.</h2>
-        <p>After the build, I stay on each month to review the numbers, keep the work honest and coach your team so they need me less. Fixed monthly price, cancel anytime.</p>
-      </div>
-      <a class="btn btn-ghost" href="/outcome-partner/">See Outcome Partner <span class="arr" aria-hidden="true">→</span></a>
-    </div>
-  </div>
-</section>
-
-<section class="sec" aria-labelledby="proof-h">
-  <div class="wrap">
-    <header class="sec-head rv"><p class="eyebrow">Proof</p><h2 id="proof-h">Where I’ve done this before.</h2></header>
-    <div class="cases one"><article class="case rv">
-        <svg class="c-ico" viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h12"/><path d="M12 6l6 6-6 6"/><path d="M4 5v14"/></svg>
-        <p class="c-k">Financial services · large engineering team <span class="c-tag">Delivery leadership</span></p>
-        <p class="c-m">2× <small>release frequency</small></p>
-        <dl class="c-rows">
-          <div><dt>The problem</dt><dd>Releases crawled out the door, and value sat waiting.</dd></div>
-          <div><dt>What was done</dt><dd>Rebuilt the teams as stable, cross-functional units using Kanban and Lean principles, and made engineering excellence the norm.</dd></div>
-          <div class="res"><dt>The result</dt><dd>Release frequency doubled, from monthly to fortnightly, while output grew. Customers got value twice as fast.</dd></div>
-        </dl>
-      </article></div>
-  </div>
-</section>
-
-<section class="sec alt" aria-labelledby="close-h">
-  <div class="wrap">
-    <div class="cta rv">
-      <p class="eyebrow">Start here</p>
-      <h2 id="close-h">Try it before you talk to me.</h2>
-      <p>The free demos need no sign-up. If you’d rather talk it through, a few lines by email or a thirty-minute call is plenty.</p>
-      <div class="actions">
-        <a class="btn" href="/demo/">Try the free demo <span class="arr" aria-hidden="true">→</span></a>
-        <a class="btn btn-ghost" href="/#contact">Talk it through</a>
-      </div>
-    </div>
+    <h2 id="proof-h" class="h-sm">Where I’ve done this before</h2>
+    <div class="mini rv"><p class="c-m">2× <small>release frequency</small></p><div><p class="c-k">Financial services · large engineering team <span class="c-tag">Delivery leadership</span></p><p class="mini-r">Release frequency doubled, from monthly to fortnightly, while output grew. Customers got value twice as fast.</p><a class="more" href="/#cases">More case studies</a></div></div>
   </div>
 </section>
 </main>
