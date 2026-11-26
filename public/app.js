@@ -71,6 +71,21 @@
   /* Warm the Worker and the browser cache so the live dashboard opens with its data ready. */
   if (home) (window.requestIdleCallback || function (f) { setTimeout(f, 1500); })(function () { try { fetch('/api/flow').catch(function () {}); } catch (e) {} });
 
+  /* ---------- live demos page: pick a demo (/demo/#backlog, /demo/#outcomes; default Delivery) ---------- */
+  var dtabs = $$('.dtab'), dpanels = $$('[data-demo]:not(.dtab)');
+  if (dtabs.length) {
+    var pick = function (id, push) {
+      dpanels.forEach(function (p) { p.hidden = p.getAttribute('data-demo') !== id; });
+      dtabs.forEach(function (t) { t.setAttribute('aria-pressed', t.getAttribute('data-demo') === id ? 'true' : 'false'); });
+      if (push) { try { history.replaceState(null, '', id === 'delivery' ? location.pathname : '#' + id); } catch (e) {} }
+      window.dispatchEvent(new Event('resize')); /* the dashboard redraws to its real width */
+    };
+    var fromHash = function () { var h = location.hash.slice(1); pick(h === 'backlog' || h === 'outcomes' ? h : 'delivery', false); };
+    dtabs.forEach(function (t) { t.addEventListener('click', function () { pick(t.getAttribute('data-demo'), true); }); });
+    window.addEventListener('hashchange', fromHash);
+    fromHash();
+  }
+
   /* ---------- results: count-up ---------- */
   function fmt(v, dec, sign) {
     var s = dec ? Math.abs(v).toFixed(dec) : String(Math.abs(Math.round(v)));

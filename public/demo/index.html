@@ -21,7 +21,6 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,200..800&family=Instrument+Sans:wght@400..700&family=JetBrains+Mono:wght@400..600&display=swap">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230C2233'/%3E%3Cpath d='M5 25H11V19H17V13H23V7H27' fill='none' stroke='%233DD0A5' stroke-width='3' stroke-linejoin='round'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="/styles.css">
-<script>if(/[?&]embed=1/.test(location.search))document.documentElement.classList.add('embed');if(/[?&]compact=1/.test(location.search))document.documentElement.classList.add('embed-compact')</script>
 </head>
 <body data-page="demo">
 <a class="skip" href="#main">Skip to content</a>
@@ -62,19 +61,19 @@
       <h1 id="hub-h">Try it before you talk to me.</h1>
       <p class="sub">Three free demos, one for each stage. No sign-up. Anything you add stays in your browser.</p>
     </header>
-    <ul class="hub-cards">
-      <li class="hub-card"><p class="o-n">Delivery</p><h2>How is the team delivering?</h2><span class="live-tag">Live</span><p>Charts and plain-English insight on real public data. Bring-your-own-file is coming next.</p><a class="btn" href="#dashboard">Open the dashboard <span class="arr" aria-hidden="true">→</span></a><a class="more" href="/delivery/">About the Delivery offer</a></li>
-      <li class="hub-card"><p class="o-n">Backlog</p><h2>Is the right work coming in?</h2><span class="soon-tag">Coming soon</span><p>Type a rough idea. Get it challenged and split into small stories.</p><a class="btn btn-ghost" href="/backlog/#demo">See an example <span class="arr" aria-hidden="true">→</span></a><a class="more" href="/backlog/">About the Backlog offer</a></li>
-      <li class="hub-card"><p class="o-n">Outcomes</p><h2>Is the work linked to outcomes?</h2><span class="soon-tag">Coming soon</span><p>State an outcome. Get a so-what test and ways to measure it.</p><a class="btn btn-ghost" href="/outcomes/#demo">See an example <span class="arr" aria-hidden="true">→</span></a><a class="more" href="/outcomes/">About the Outcomes offer</a></li>
-    </ul>
+    <div class="subtabs three" role="group" aria-label="Choose a demo">
+      <button type="button" class="subtab dtab" data-demo="delivery" aria-pressed="true"><span class="st-n">1</span><span class="st-t">Delivery<small>Live on real public data</small></span></button>
+      <button type="button" class="subtab dtab" data-demo="backlog" aria-pressed="false"><span class="st-n">2</span><span class="st-t">Backlog<small>Example now, live soon</small></span></button>
+      <button type="button" class="subtab dtab" data-demo="outcomes" aria-pressed="false"><span class="st-n">3</span><span class="st-t">Outcomes<small>Example now, live soon</small></span></button>
+    </div>
   </div>
 </section>
 
-<div id="dashboard"></div>
+<div data-demo="delivery">
 <section class="dash" id="showcase" aria-labelledby="dash-h" data-state="loading">
   <div class="wrap">
     <div class="demo-pick">
-      <p class="demo-pick-l" id="pick-l">Choose a live demo</p>
+      <p class="demo-pick-l" id="pick-l">Choose an example project</p>
       <div class="subtabs" role="tablist" aria-labelledby="pick-l">
         <button type="button" role="tab" class="subtab" id="tab-product" data-source="product" aria-selected="true"><span class="st-n">1</span><span class="st-t">Product feedback<small>Bugs and suggestions</small></span></button>
         <button type="button" role="tab" class="subtab" id="tab-engine" data-source="engine" aria-selected="false"><span class="st-n">2</span><span class="st-t">Engineering pipeline<small>Triage to release</small></span></button>
@@ -176,6 +175,92 @@
   </div>
 </section>
 
+
+  <div class="wrap about-offer"><p class="notify"><strong>Coming next:</strong> drop in your own export, processed in your browser only. <a data-mail="Tell me when the Delivery drop-your-own-file demo is live" href="#contact">Email me</a> or <a href="https://www.linkedin.com/in/russwingfield/" target="_blank" rel="noopener">follow me on LinkedIn</a>. <a class="more" href="/delivery/">About the Delivery offer <span class="arr" aria-hidden="true">→</span></a></p></div>
+</div>
+
+<section class="sec demo-sec" data-demo="backlog" aria-labelledby="backlog-h">
+  <div class="wrap">
+    <div class="demo-panel ">
+      <div class="demo-bar">
+        <h2 id="backlog-h">Backlog demo</h2>
+        <span class="soon-tag">Live version coming soon</span>
+      </div>
+      <div class="demo-body">
+        <div class="demo-in">
+          <p class="demo-k">An idea, as it arrives</p>
+          <blockquote class="idea">“Customers keep asking if they can export their invoices.”</blockquote>
+          <p class="demo-k">What I asked back</p>
+          <ul class="asks"><li>What outcome is this for?</li><li>Who, exactly, is asking?</li><li>How will you know it worked?</li></ul>
+        </div>
+        <div class="demo-out">
+          <p class="demo-k">Here’s my thinking</p>
+          <div class="think">
+            <p><strong>Outcome:</strong> unclear. I’ve assumed fewer “where is my invoice” tickets, falling by a third in 60 days.</p>
+            <p><strong>My split:</strong> three stories, each usable on its own. I joined “choose a format” into story 1, because a picker with one format isn’t worth shipping alone.</p>
+          </div>
+          <p class="demo-k">Stories, ready for Jira or Azure DevOps</p>
+          <article class="story">
+            <h3>1. Download a single invoice as a PDF</h3>
+            <p class="us">As a finance admin, I want to download any past invoice as a PDF, so that I can file it without asking support.</p>
+            <ul class="ac"><li>The PDF totals match the invoice on screen</li><li>Invoices older than seven years show a clear message</li></ul>
+            <p class="chips"><span>Story</span><span>Outcome: fewer invoice-copy tickets</span><span>Estimate: 3</span></p>
+          </article>
+          <p class="story-mini"><strong>2. Download a date range as one CSV.</strong> A different need (month-end). I’d wait for story 1 to show demand.</p>
+          <p class="story-mini"><strong>3. Send invoices to an AP address automatically.</strong> Bigger risk (email, permissions). Held back until 1 and 2 are used.</p>
+        </div>
+      </div>
+      <div class="demo-foot">
+        <p><strong>A curated example of real output, not a live run.</strong> The live Backlog demo is coming soon, in this same place.</p>
+        <p class="notify">Hear when it ships: <a data-mail="Tell me when the Backlog demo is live" href="#contact">email me</a> or <a href="https://www.linkedin.com/in/russwingfield/" target="_blank" rel="noopener">follow me on LinkedIn</a>.</p>
+        <p><a class="more" href="/backlog/">About the Backlog offer <span class="arr" aria-hidden="true">→</span></a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec demo-sec" data-demo="outcomes" aria-labelledby="outcomes-h">
+  <div class="wrap">
+    <div class="demo-panel ">
+      <div class="demo-bar">
+        <h2 id="outcomes-h">Outcomes demo</h2>
+        <span class="soon-tag">Live version coming soon</span>
+      </div>
+      <div class="demo-body">
+        <div class="demo-in">
+          <p class="demo-k">An outcome, as stated</p>
+          <blockquote class="idea">“Make us easier to buy from.”</blockquote>
+          <p class="demo-k">What I asked back</p>
+          <ul class="asks"><li>So what changes when we achieve it?</li><li>What would you see or count?</li><li>Which work is meant to move it?</li></ul>
+        </div>
+        <div class="demo-out">
+          <p class="demo-k">The so-what test</p>
+          <div class="think">
+            <p><span class="verdict">Not yet an outcome</span></p>
+            <p>“Easier to buy from” is a quality, not a change in what customers do. <strong>Sharper:</strong> more qualified trials turn into paying customers without a sales call.</p>
+          </div>
+          <p class="demo-k">Ways to measure it</p>
+          <ul class="measures">
+            <li><span class="m-k">Leading</span><span>Median days from sign-up to first value moment</span></li>
+            <li><span class="m-k">Result</span><span>Self-serve trial-to-paid conversion rate</span></li>
+            <li><span class="m-k">Guardrail</span><span>Refunds within 30 days</span></li>
+          </ul>
+          <p class="demo-k">Linked down to the backlog: 2 of 3 items</p>
+          <ul class="links">
+            <li><span class="ok">Linked</span><span><strong>Guided first-run checklist</strong> moves days to first value</span></li>
+            <li><span class="ok">Linked</span><span><strong>Pricing page rewrite</strong> moves conversion</span></li>
+            <li><span class="no">No link</span><span><strong>Weekly report export</strong> moves neither. Does it belong this quarter?</span></li>
+          </ul>
+        </div>
+      </div>
+      <div class="demo-foot">
+        <p><strong>A curated example of real output, not a live run.</strong> The live Outcomes demo is coming soon, in this same place.</p>
+        <p class="notify">Hear when it ships: <a data-mail="Tell me when the Outcomes demo is live" href="#contact">email me</a> or <a href="https://www.linkedin.com/in/russwingfield/" target="_blank" rel="noopener">follow me on LinkedIn</a>.</p>
+        <p><a class="more" href="/outcomes/">About the Outcomes offer <span class="arr" aria-hidden="true">→</span></a></p>
+      </div>
+    </div>
+  </div>
+</section>
 
 <section class="sec alt demo-cta" aria-labelledby="demo-cta-h">
   <div class="wrap">

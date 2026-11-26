@@ -384,12 +384,12 @@
   }
   function useSource(id) {
     current = id; data = null; drawn = false;
-    document.querySelectorAll('.subtab').forEach(function (b) { b.setAttribute('aria-selected', b.getAttribute('data-source') === id ? 'true' : 'false'); });
+    document.querySelectorAll('#showcase .subtab').forEach(function (b) { b.setAttribute('aria-selected', b.getAttribute('data-source') === id ? 'true' : 'false'); });
     document.querySelectorAll('.src[data-src]').forEach(function (n) { n.hidden = n.getAttribute('data-src') !== id; });
     set('dash-h', SOURCES[id].title); set('sc-blurb', SOURCES[id].blurb);
     try { history.replaceState(null, '', id === 'product' ? location.pathname : '#' + id); } catch (e) { /* not essential */ }
   }
-  document.querySelectorAll('.subtab').forEach(function (b) { b.addEventListener('click', function () { var id = b.getAttribute('data-source'); if (id === current) return; useSource(id); load(); }); });
+  document.querySelectorAll('#showcase .subtab').forEach(function (b) { b.addEventListener('click', function () { var id = b.getAttribute('data-source'); if (id === current) return; useSource(id); load(); }); });
 
   /* ---------- load, draw, redraw ---------- */
   function state(name) { sec.setAttribute('data-state', name); }
