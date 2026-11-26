@@ -2,7 +2,7 @@
 
 Website for Agile Outcomes (agileoutcomes.co.uk).
 
-- `public/` holds the site. Everything in this folder is published. Pages: `index.html` (home), `delivery/`, `backlog/`, `outcomes/`, `outcome-partner/` (one page per offer) and `demo/` (Live Demos hub plus the dashboard below). Shared styles in `styles.css`, shared script in `app.js`.
+- `public/` holds the site. Everything in this folder is published. Pages: `index.html` (home), `delivery/`, `backlog/`, `outcomes/`, `momentum/` (one page per offer) and `demo/` (Live Demos hub plus the dashboard below). Shared styles in `styles.css`, shared script in `app.js`.
 - Offer pages follow one template (headline, problem, demo panel, what you get, built in your tools, objection, price, next step, proof). Prices are list crossed out plus introductory price; they are draft figures, marked with comments in the HTML.
 - The demos all live on `/demo/`, chosen with the picker at the top (Delivery is the default; `/demo/#backlog` and `/demo/#outcomes` open the others); each offer page's button links to its own. The Backlog and Outcomes panels are curated examples. A live demo replaces the contents of `.demo-body` inside `.demo-panel`.
 - Contact: any link with `data-mail="Subject"` becomes a mailto link to the address in `app.js`.
