@@ -8,5 +8,7 @@
     "run_worker_first": ["/api/*"]
   },
   // Workers AI writes the dashboard commentary. It has a free daily allowance and needs no key.
-  "ai": { "binding": "AI" }
+  "ai": { "binding": "AI" },
+  // Branch previews (npx wrangler preview) need the AI binding declared here too.
+  "previews": { "ai": { "binding": "AI" } }
 }
